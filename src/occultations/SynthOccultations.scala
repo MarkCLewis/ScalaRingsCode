@@ -9,6 +9,7 @@ import scalafx.application.JFXApp
 import util.Particle
 import util.Ray
 import util.Vect3D
+import scalafx.Includes._
 import scalafx.scene.Scene
 import scalafx.scene.image.WritableImage
 import scalafx.scene.image.ImageView
@@ -18,19 +19,36 @@ import scalafx.scene.chart.NumberAxis
 import scalafx.collections.ObservableBuffer
 import scalafx.scene.chart.XYChart
 import scalafx.scene.chart.LineChart
+import scalafx.scene.layout.GridPane
+import scalafx.scene.layout.BorderPane
+import scalafx.scene.layout.HBox
+import scalafx.scene.control.MenuBar
+import scalafx.scene.canvas.Canvas
+import scalafx.scene.control.Label
+import scalafx.scene.control.TextField
+import scalafx.scene.control.Button
+import scalafx.event.ActionEvent
+import scalafx.scene.layout.FlowPane
+import scalafx.scene.control.Menu
+import scalafx.scene.control.MenuItem
+import scalafx.scene.control.SeparatorMenuItem
+import scalafx.stage.FileChooser
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scalafx.application.Platform
 
 object SynthOccultations extends JFXApp {
   case class BinData(xmin: Double, xmax: Double, ymin: Double, ymax: Double, binSize: Double, bins: IndexedSeq[IndexedSeq[IndexedSeq[Particle]]])
 
-  case class Photon(x:Double, y:Double, hit:Boolean)
-  case class Scan(sx: Double, sy: Double, ex: Double, ey: Double, intensity: Double, photons:Seq[Photon])
+  case class Photon(x: Double, y: Double, hit: Boolean)
+  case class Scan(sx: Double, sy: Double, ex: Double, ey: Double, intensity: Double, photons: Seq[Photon])
 
   def multipleCuts(x: Double, y: Double, theta: Double, phi: Double, cutTheta: Double, scanLength: Double,
     offLength: Double, beamSize: Double, binData: BinData, zmin: Double, zmax: Double, photons: Int, cutSpread: Double): Seq[Seq[Scan]] = {
     var my = y
     while (my - cutSpread > binData.ymin) my -= cutSpread
     val ret = mutable.ArrayBuffer[Seq[Scan]]()
-    while(my < binData.ymax) {
+    while (my < binData.ymax) {
       println("Cut at " + my)
       ret += syntheticOccultation(x, my, theta, phi, cutTheta, scanLength, offLength, beamSize, binData, zmin, zmax, photons)
       my += cutSpread
@@ -54,8 +72,8 @@ object SynthOccultations extends JFXApp {
     val dx = math.cos(cutTheta)
     val dy = math.sin(cutTheta)
     val height = zmin.abs max zmax
-    val xstart = binData.xmin + rDir.z * height
-    val xend = binData.xmax - rDir.z * height
+    val xstart = binData.xmin + rDir.x * height
+    val xend = binData.xmax - rDir.x * height
     var mx = xstart
     val ret = mutable.Buffer[Scan]()
     while (mx < xend) {
@@ -63,21 +81,16 @@ object SynthOccultations extends JFXApp {
       val sy = y + (math.tan(cutTheta) * (sx - x))
       val ex = sx + scanLength * math.cos(cutTheta)
       val ey = y + (math.tan(cutTheta) * (ex - x))
-      val photons = (1 to photonCount).map(_ => {
+      val photons = (1 to photonCount).par.map(_ => {
         val t = math.random
         val rx = sx + t * (ex - sx) + math.random * math.random * beamSize
         val ry = sy + t * (ey - sy) + math.random * math.random * beamSize
         Photon(rx, ry, rayGridIntersect(Ray(Vect3D(rx, ry, 0), rDir), binData, zmin, zmax))
       })
-      ret += Scan(sx, sy, ex, ey, photons.count(p => !p.hit).toDouble / photonCount, photons)
+      ret += Scan(sx, sy, ex, ey, photons.count(p => !p.hit).toDouble / photonCount, photons.seq)
       mx += (scanLength + offLength) * math.cos(cutTheta)
     }
     ret
-  }
-
-  def makeRay(x: Double, y: Double, theta: Double, phi: Double): Ray = {
-    import math._
-    Ray(Vect3D(x, y, 0), Vect3D(cos(theta) * cos(phi), sin(theta) * cos(phi), sin(phi)))
   }
 
   def rayGridIntersect(r: Ray, binData: BinData, zmin: Double, zmax: Double): Boolean = {
@@ -126,17 +139,11 @@ object SynthOccultations extends JFXApp {
     BinData(xmin, xmax, ymin, ymax, binSize, ret)
   }
 
-  val data = CartAndRad.read(new File("/home/mlewis/Rings/JoshCDAP/a=130000:q=2.8:min=2e-9:max=2e-8:rho=0.5:sigma=45/CartAndRad.5000.bin"))
+  var data = CartAndRad.read(new File("/home/mlewis/Rings/JoshCDAP/a=130000:q=2.8:min=2e-9:max=2e-8:rho=0.5:sigma=45/CartAndRad.5000.bin"))
 
   println("Data read")
 
-  val binData = binParticles(data)
-
-  def binDataf = binData
-
-  //  val (zmin, zmax) = data.foldLeft(Double.MaxValue, Double.MinValue)((acc, p) => {
-  //    (acc._1 min p.z - p.rad, acc._2 max p.z + p.rad)
-  //  })
+  var binData = binParticles(data)
 
   val (zmin, zmax) = {
     val sorted = data.map(_.z).sorted
@@ -144,17 +151,18 @@ object SynthOccultations extends JFXApp {
   }
 
   println(binData.xmin, binData.xmax, binData.ymin, binData.ymax, binData.binSize, binData.bins.length, binData.bins(0).length)
-  
-  val length = 10.0
-  val gap = length/10
-  val beam = 1.0
+
+  val length = 100.0
+  val gap = 20.0
+  val beamWidth = 10.0
+  val theta = 0.0
+  val phi = 90
+  val cutTheta = 0.0
   val spread = 100.0
-  
-  val so = multipleCuts(0, 0, 0, math.Pi / 2, 0, length / 136505500, gap / 136505500, beam / 136505500, binData, zmin, zmax, 1000, spread / 136505500)
 
   stage = new JFXApp.PrimaryStage {
     title = "Show Bins"
-    scene = new Scene(binData.bins.length, binData.bins(0).length) {
+    scene = new Scene(1600, 900) {
 
       //      val wimg = new WritableImage(binData.bins.length, binData.bins(0).length)
       //      val writer = wimg.pixelWriter
@@ -165,12 +173,104 @@ object SynthOccultations extends JFXApp {
       //      }
       //      content = new ImageView(wimg)
 
-      val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number]((sc.sx + sc.ex) / 2 + i*(binData.xmax-binData.xmin), sc.intensity)))
-      val scatter = new LineChart(NumberAxis(), NumberAxis(), ObservableBuffer(XYChart.Series(ObservableBuffer(chartData: _*))))
+      val occult = new LineChart(NumberAxis(), NumberAxis())
+      occult.minWidth = 800
+      occult.minHeight = 800
 
-//      val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number](sc.sx, sc.sy)))
-//      val scatter = new ScatterChart(NumberAxis(), NumberAxis(), ObservableBuffer(XYChart.Series(ObservableBuffer(chartData: _*))))
-      root = scatter
+      val canvas = new Canvas(800, 800)
+      val gc = canvas.graphicsContext2D
+
+      val grid = new GridPane
+      grid.children = List(occult, canvas)
+      GridPane.setConstraints(occult, 0, 0)
+      GridPane.setConstraints(canvas, 1, 0)
+
+      val menuBar = new MenuBar
+      val menu = new Menu("File")
+      val openItem = new MenuItem("Open")
+      openItem.onAction = (e: ActionEvent) => {
+        val chooser = new FileChooser
+        val file = chooser.showOpenDialog(stage)
+        if (file != null) {
+          Future {
+            data = CartAndRad.read(file)
+            binData = binParticles(data)
+            processOccultation()
+          }
+        }
+      }
+      val saveImageItem = new MenuItem("Save Image")
+      saveImageItem.onAction = (e: ActionEvent) => {
+        ???
+      }
+      val exitItem = new MenuItem("Exit")
+      exitItem.onAction = (e: ActionEvent) => {
+        sys.exit(0)
+      }
+      menu.items = List(openItem, saveImageItem, new SeparatorMenuItem, exitItem)
+      menuBar.menus += menu
+
+      val lengthField = new TextField
+      lengthField.text = length.toString
+      val gapField = new TextField
+      gapField.text = gap.toString
+      val beamWidthField = new TextField
+      beamWidthField.text = beamWidth.toString
+      val thetaField = new TextField
+      thetaField.text = theta.toString
+      val phiField = new TextField
+      phiField.text = phi.toString
+      val cutThetaField = new TextField
+      cutThetaField.text = cutTheta.toString
+      val spreadField = new TextField
+      spreadField.text = spread.toString
+      val button = new Button("Process")
+      val settings = new FlowPane(10, 10)
+      settings.children = List(new Label("Length:"), lengthField, new Label("Gap:"), gapField,
+        new Label("Beam Width:"), beamWidthField, new Label("Theta:"), thetaField,
+        new Label("Phi:"), phiField, new Label("Cut Theta:"), cutThetaField,
+        new Label("Spread:"), spreadField, button)
+      button.onAction = (e: ActionEvent) => {
+        Future { processOccultation() }
+      }
+
+      val border = new BorderPane
+      border.top = menuBar
+      border.bottom = settings
+      border.center = grid
+
+      root = border
+
+      processOccultation()
+
+      def processOccultation(): Unit = {
+        val so = multipleCuts(0, 0, thetaField.text.value.toDouble * math.Pi / 180, phiField.text.value.toDouble * math.Pi / 180,
+          cutThetaField.text.value.toDouble * math.Pi / 180, lengthField.text.value.toDouble / 136505500, gapField.text.value.toDouble / 136505500,
+          beamWidthField.text.value.toDouble / 136505500, binData, zmin, zmax, 1000, spreadField.text.value.toDouble / 136505500)
+        val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number]((sc.sx + sc.ex) / 2 + i * (binData.xmax - binData.xmin), sc.intensity)))
+        Platform.runLater {
+          occult.data = ObservableBuffer(XYChart.Series(ObservableBuffer(chartData: _*)))
+          drawCanvas(so)
+        }
+      }
+
+      def drawCanvas(scanData: Seq[Seq[Scan]]): Unit = {
+        gc.fill = Color.White
+        gc.fillRect(0, 0, 800, 800)
+        gc.save
+        gc.translate(400, 400)
+        gc.scale(800 / (binData.xmax - binData.xmin), -800 / (binData.ymax - binData.ymin))
+        gc.fill = Color.Black
+        for (p <- data) {
+          gc.fillOval(p.x - p.rad, p.y - p.rad, p.rad * 2, p.rad * 2)
+        }
+        val size = (binData.xmax - binData.xmin) / 1600
+        for (slice <- scanData; scan <- slice; photon <- scan.photons) {
+          gc.fill = if (photon.hit) Color.Red else Color.Green
+          gc.fillOval(photon.x - size, photon.y - size, 2 * size, 2 * size)
+        }
+        gc.restore
+      }
     }
   }
 }
