@@ -17,12 +17,27 @@ import scalafx.scene.chart.ScatterChart
 import scalafx.scene.chart.NumberAxis
 import scalafx.collections.ObservableBuffer
 import scalafx.scene.chart.XYChart
+import scalafx.scene.chart.LineChart
 
 object SynthOccultations extends JFXApp {
   case class BinData(xmin: Double, xmax: Double, ymin: Double, ymax: Double, binSize: Double, bins: IndexedSeq[IndexedSeq[IndexedSeq[Particle]]])
-  
-  case class Scan(sx:Double, sy:Double, ex:Double, ey:Double, intensity:Double)
-  
+
+  case class Photon(x:Double, y:Double, hit:Boolean)
+  case class Scan(sx: Double, sy: Double, ex: Double, ey: Double, intensity: Double, photons:Seq[Photon])
+
+  def multipleCuts(x: Double, y: Double, theta: Double, phi: Double, cutTheta: Double, scanLength: Double,
+    offLength: Double, beamSize: Double, binData: BinData, zmin: Double, zmax: Double, photons: Int, cutSpread: Double): Seq[Seq[Scan]] = {
+    var my = y
+    while (my - cutSpread > binData.ymin) my -= cutSpread
+    val ret = mutable.ArrayBuffer[Seq[Scan]]()
+    while(my < binData.ymax) {
+      println("Cut at " + my)
+      ret += syntheticOccultation(x, my, theta, phi, cutTheta, scanLength, offLength, beamSize, binData, zmin, zmax, photons)
+      my += cutSpread
+    }
+    ret
+  }
+
   /**
    * @param x The radial coordinate of a point the occultation crosses in the plane
    * @param y The azimuthal coordinate of a point the occultation crosses in the plane
@@ -33,29 +48,29 @@ object SynthOccultations extends JFXApp {
    * @param offLength How long the scan moves when the shutter is closed
    * @param beamSize The radius of the beam in the ring plane
    */
-  def syntheticOccultation(x:Double, y:Double, theta: Double, phi: Double, cutTheta:Double, scanLength:Double, 
-      offLength:Double, beamSize:Double, binData: BinData, zmin: Double, zmax: Double, photons:Int):Seq[Scan] = {
+  def syntheticOccultation(x: Double, y: Double, theta: Double, phi: Double, cutTheta: Double, scanLength: Double,
+    offLength: Double, beamSize: Double, binData: BinData, zmin: Double, zmax: Double, photonCount: Int): Seq[Scan] = {
     val rDir = Vect3D(cos(theta) * cos(phi), sin(theta) * cos(phi), sin(phi))
     val dx = math.cos(cutTheta)
     val dy = math.sin(cutTheta)
     val height = zmin.abs max zmax
-    val xstart = binData.xmin+rDir.z*height
-    val xend = binData.xmax-rDir.z*height
+    val xstart = binData.xmin + rDir.z * height
+    val xend = binData.xmax - rDir.z * height
     var mx = xstart
     val ret = mutable.Buffer[Scan]()
-    while(mx < xend) {
+    while (mx < xend) {
       val sx = mx
-      val sy = y+(math.tan(cutTheta)*(sx-x))
-      val ex = sx+scanLength*math.cos(cutTheta)
-      val ey = y+(math.tan(cutTheta)*(ex-x))
-      val cnt = (1 to photons).count(_ => {
+      val sy = y + (math.tan(cutTheta) * (sx - x))
+      val ex = sx + scanLength * math.cos(cutTheta)
+      val ey = y + (math.tan(cutTheta) * (ex - x))
+      val photons = (1 to photonCount).map(_ => {
         val t = math.random
-        val rx = sx+t*(ex-sx)+math.random*beamSize
-        val ry = sx+t*(ex-sx)+math.random*beamSize
-        !rayGridIntersect(Ray(Vect3D(rx,ry,0),rDir), binData, zmin, zmax)
+        val rx = sx + t * (ex - sx) + math.random * math.random * beamSize
+        val ry = sy + t * (ey - sy) + math.random * math.random * beamSize
+        Photon(rx, ry, rayGridIntersect(Ray(Vect3D(rx, ry, 0), rDir), binData, zmin, zmax))
       })
-      ret += Scan(sx,sy,ex,ey,cnt.toDouble/photons)
-      mx += (scanLength+offLength)*math.cos(cutTheta)
+      ret += Scan(sx, sy, ex, ey, photons.count(p => !p.hit).toDouble / photonCount, photons)
+      mx += (scanLength + offLength) * math.cos(cutTheta)
     }
     ret
   }
@@ -72,10 +87,10 @@ object SynthOccultations extends JFXApp {
     val xmax = r.r0.x + tmax * r.r.x
     val ymin = r.r0.y + tmin * r.r.y
     val ymax = r.r0.y + tmax * r.r.y
-    val minxbin = (((xmin min xmax) - binData.xmin) / binData.binSize).toInt max 0
-    val maxxbin = (((xmin max xmax) - binData.xmin) / binData.binSize).toInt min binData.bins.length-1
-    val minybin = (((ymin min ymax) - binData.ymin) / binData.binSize).toInt max 0
-    val maxybin = (((ymin max ymax) - binData.ymin) / binData.binSize).toInt min binData.bins(0).length-1
+    val minxbin = (((xmin min xmax) - binData.xmin) / binData.binSize).toInt - 1 max 0
+    val maxxbin = (((xmin max xmax) - binData.xmin) / binData.binSize).toInt + 1 min binData.bins.length - 1
+    val minybin = (((ymin min ymax) - binData.ymin) / binData.binSize).toInt - 1 max 0
+    val maxybin = (((ymin max ymax) - binData.ymin) / binData.binSize).toInt + 1 min binData.bins(0).length - 1
     (minxbin to maxxbin).exists(xbin => {
       (minybin to maxybin).exists(ybin => rayBinIntersect(r, xbin, ybin, binData))
     })
@@ -119,33 +134,42 @@ object SynthOccultations extends JFXApp {
 
   def binDataf = binData
 
-//  val (zmin, zmax) = data.foldLeft(Double.MaxValue, Double.MinValue)((acc, p) => {
-//    (acc._1 min p.z - p.rad, acc._2 max p.z + p.rad)
-//  })
-  
+  //  val (zmin, zmax) = data.foldLeft(Double.MaxValue, Double.MinValue)((acc, p) => {
+  //    (acc._1 min p.z - p.rad, acc._2 max p.z + p.rad)
+  //  })
+
   val (zmin, zmax) = {
     val sorted = data.map(_.z).sorted
-    (sorted(100), sorted(sorted.length-100))
+    (sorted(100), sorted(sorted.length - 100))
   }
 
   println(binData.xmin, binData.xmax, binData.ymin, binData.ymax, binData.binSize, binData.bins.length, binData.bins(0).length)
-  val so = syntheticOccultation(0, 0, 0, math.Pi/2, 0, 100.0/136505500, 10.0/136505500, 5.0/136505500, binData, zmin, zmax, 1000)
+  
+  val length = 10.0
+  val gap = length/10
+  val beam = 1.0
+  val spread = 100.0
+  
+  val so = multipleCuts(0, 0, 0, math.Pi / 2, 0, length / 136505500, gap / 136505500, beam / 136505500, binData, zmin, zmax, 1000, spread / 136505500)
 
   stage = new JFXApp.PrimaryStage {
     title = "Show Bins"
     scene = new Scene(binData.bins.length, binData.bins(0).length) {
 
-//      val wimg = new WritableImage(binData.bins.length, binData.bins(0).length)
-//      val writer = wimg.pixelWriter
-//      for (i <- binData.bins.indices; j <- binData.bins(i).indices) {
-//        if(j==0) println(i)
-//        if (rayGridIntersect(Ray(Vect3D(binData.xmin + i * binData.binSize, binData.ymin + j * binData.binSize, 0), Vect3D(2, 0, 1)), binData, zmin, zmax)) writer.setColor(i, j, Color.Black)
-//        else writer.setColor(i, j, Color.White)
-//      }
-//      content = new ImageView(wimg)
-      
-      val chartData = so.map(sc => XYChart.Data[Number,Number]((sc.sx+sc.ex)/2,sc.intensity))
-      val scatter = new ScatterChart(NumberAxis(), NumberAxis(), ObservableBuffer(XYChart.Series(ObservableBuffer(chartData:_*))))
+      //      val wimg = new WritableImage(binData.bins.length, binData.bins(0).length)
+      //      val writer = wimg.pixelWriter
+      //      for (i <- binData.bins.indices; j <- binData.bins(i).indices) {
+      //        if(j==0) println(i)
+      //        if (rayGridIntersect(Ray(Vect3D(binData.xmin + i * binData.binSize, binData.ymin + j * binData.binSize, 0), Vect3D(2, 0, 1)), binData, zmin, zmax)) writer.setColor(i, j, Color.Black)
+      //        else writer.setColor(i, j, Color.White)
+      //      }
+      //      content = new ImageView(wimg)
+
+      val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number]((sc.sx + sc.ex) / 2 + i*(binData.xmax-binData.xmin), sc.intensity)))
+      val scatter = new LineChart(NumberAxis(), NumberAxis(), ObservableBuffer(XYChart.Series(ObservableBuffer(chartData: _*))))
+
+//      val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number](sc.sx, sc.sy)))
+//      val scatter = new ScatterChart(NumberAxis(), NumberAxis(), ObservableBuffer(XYChart.Series(ObservableBuffer(chartData: _*))))
       root = scatter
     }
   }
