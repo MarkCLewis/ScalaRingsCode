@@ -158,11 +158,11 @@ object SynthOccultations extends JFXApp {
   val theta = 0.0
   val phi = 90
   val cutTheta = 0.0
-  val spread = 100.0
+  val spread = 500.0
 
   stage = new JFXApp.PrimaryStage {
     title = "Show Bins"
-    scene = new Scene(1600, 900) {
+    scene = new Scene(1600, 850) {
 
       //      val wimg = new WritableImage(binData.bins.length, binData.bins(0).length)
       //      val writer = wimg.pixelWriter
@@ -173,7 +173,7 @@ object SynthOccultations extends JFXApp {
       //      }
       //      content = new ImageView(wimg)
 
-      val occult = new LineChart(NumberAxis(), NumberAxis())
+      val occult = new LineChart(NumberAxis("Radial Distance [km]"), NumberAxis("Fractional Transmission"))
       occult.minWidth = 800
       occult.minHeight = 800
 
@@ -212,18 +212,25 @@ object SynthOccultations extends JFXApp {
 
       val lengthField = new TextField
       lengthField.text = length.toString
+      lengthField.prefWidth = 100
       val gapField = new TextField
       gapField.text = gap.toString
+      gapField.prefWidth = 100
       val beamWidthField = new TextField
       beamWidthField.text = beamWidth.toString
+      beamWidthField.prefWidth = 100
       val thetaField = new TextField
       thetaField.text = theta.toString
+      thetaField.prefWidth = 100
       val phiField = new TextField
       phiField.text = phi.toString
+      phiField.prefWidth = 100
       val cutThetaField = new TextField
       cutThetaField.text = cutTheta.toString
+      cutThetaField.prefWidth = 100
       val spreadField = new TextField
       spreadField.text = spread.toString
+      spreadField.prefWidth = 100
       val button = new Button("Process")
       val settings = new FlowPane(10, 10)
       settings.children = List(new Label("Length:"), lengthField, new Label("Gap:"), gapField,
@@ -240,6 +247,11 @@ object SynthOccultations extends JFXApp {
       border.center = grid
 
       root = border
+      
+//      occult.prefWidth <== scene.width/2
+//      occult.prefHeight <== scene.height-settings.height-menuBar.height
+//      canvas.width <== scene.width/2
+//      canvas.height <== scene.height-settings.height-menuBar.height
 
       processOccultation()
 
@@ -247,28 +259,32 @@ object SynthOccultations extends JFXApp {
         val so = multipleCuts(0, 0, thetaField.text.value.toDouble * math.Pi / 180, phiField.text.value.toDouble * math.Pi / 180,
           cutThetaField.text.value.toDouble * math.Pi / 180, lengthField.text.value.toDouble / 136505500, gapField.text.value.toDouble / 136505500,
           beamWidthField.text.value.toDouble / 136505500, binData, zmin, zmax, 1000, spreadField.text.value.toDouble / 136505500)
-        val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number]((sc.sx + sc.ex) / 2 + i * (binData.xmax - binData.xmin), sc.intensity)))
+        val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number](((sc.sx + sc.ex) / 2 + i * (binData.xmax - binData.xmin))*136505.5, sc.intensity)))
         Platform.runLater {
-          occult.data = ObservableBuffer(XYChart.Series(ObservableBuffer(chartData: _*)))
+          occult.data = ObservableBuffer(XYChart.Series("Intensity", ObservableBuffer(chartData: _*)))
           drawCanvas(so)
         }
       }
 
       def drawCanvas(scanData: Seq[Seq[Scan]]): Unit = {
+        println(canvas.width.value+" "+canvas.height.value)
         gc.fill = Color.White
-        gc.fillRect(0, 0, 800, 800)
+        gc.fillRect(0, 0, canvas.width.value, canvas.height.value)
         gc.save
-        gc.translate(400, 400)
-        gc.scale(800 / (binData.xmax - binData.xmin), -800 / (binData.ymax - binData.ymin))
+        gc.translate(canvas.width.value/2, canvas.height.value/2)
+        gc.scale(canvas.width.value / (binData.xmax - binData.xmin), -canvas.height.value / (binData.ymax - binData.ymin))
         gc.fill = Color.Black
+        println("Draw particles")
         for (p <- data) {
           gc.fillOval(p.x - p.rad, p.y - p.rad, p.rad * 2, p.rad * 2)
         }
-        val size = (binData.xmax - binData.xmin) / 1600
+        println("Draw photons")
+        val size = 0.5*(binData.xmax - binData.xmin) / canvas.width.value
         for (slice <- scanData; scan <- slice; photon <- scan.photons) {
           gc.fill = if (photon.hit) Color.Red else Color.Green
           gc.fillOval(photon.x - size, photon.y - size, 2 * size, 2 * size)
         }
+        println("Done drawing")
         gc.restore
       }
     }
