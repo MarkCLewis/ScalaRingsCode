@@ -36,6 +36,8 @@ import scalafx.stage.FileChooser
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scalafx.application.Platform
+import java.io.PrintWriter
+import scalafx.scene.effect.BlendMode
 
 object SynthOccultations extends JFXApp {
   case class BinData(xmin: Double, xmax: Double, ymin: Double, ymax: Double, binSize: Double, bins: IndexedSeq[IndexedSeq[IndexedSeq[Particle]]])
@@ -124,12 +126,14 @@ object SynthOccultations extends JFXApp {
 
   def binParticles(parts: IndexedSeq[Particle]): BinData = {
     val (xmin, xmax, ymin, ymax) = parts.foldLeft(Double.MaxValue, Double.MinValue, Double.MaxValue, Double.MinValue)((acc, p) => {
-      (acc._1 min p.x, acc._2 max p.y, acc._3 min p.y, acc._4 max p.y)
+      (acc._1 min p.x, acc._2 max p.x, acc._3 min p.y, acc._4 max p.y)
     })
+    val maxRad = parts.foldLeft(0.0)((rad, p) => rad max p.rad)
     val dx = xmax - xmin
     val dy = ymax - ymin
     val partsPerBin = 1.0
-    val binSize = math.sqrt(dx * dy * partsPerBin / parts.length)
+    val binSize = math.sqrt(dx * dy * partsPerBin / parts.length) max maxRad
+    println(s"$dx $dy $maxRad $binSize ${math.ceil(dx / binSize)} ${dx * dy * partsPerBin / parts.length} $xmax $xmin")
     val ret = Array.fill(math.ceil(dx / binSize).toInt)(Array.fill(math.ceil(dy / binSize).toInt)(mutable.ArrayBuffer[Particle]()): IndexedSeq[mutable.ArrayBuffer[Particle]])
     for (i <- parts.indices) {
       val binx = ((parts(i).x - xmin) / binSize).toInt min ret.length - 1
@@ -139,11 +143,13 @@ object SynthOccultations extends JFXApp {
     BinData(xmin, xmax, ymin, ymax, binSize, ret)
   }
 
-  var data = CartAndRad.read(new File("/home/mlewis/Rings/JoshCDAP/a=130000:q=2.8:min=2e-9:max=2e-8:rho=0.5:sigma=45/CartAndRad.5000.bin"))
+  var data = CartAndRad.read(new File("/home/mlewis/Rings/JoshCDAP15-17/a=130000:q=2.8:min=2e-9:max=2e-8:rho=0.5:sigma=45/CartAndRad.14980.bin"))
+//  var data = CartAndRad.read(new File("/home/mlewis/Rings/KeelerGap/Straw60gcm2/CartAndRad.18000.bin"),-1700/136505.5,-1300/136505.5)
 
   println("Data read")
 
   var binData = binParticles(data)
+  var so:Seq[Seq[Scan]] = Nil
 
   val (zmin, zmax) = {
     val sorted = data.map(_.z).sorted
@@ -158,7 +164,7 @@ object SynthOccultations extends JFXApp {
   val theta = 0.0
   val phi = 90
   val cutTheta = 0.0
-  val spread = 500.0
+  val spread = 50000//500.0
 
   stage = new JFXApp.PrimaryStage {
     title = "Show Bins"
@@ -179,6 +185,7 @@ object SynthOccultations extends JFXApp {
 
       val canvas = new Canvas(800, 800)
       val gc = canvas.graphicsContext2D
+//      gc.globalBlendMode = BlendMode.Overlay
 
       val grid = new GridPane
       grid.children = List(occult, canvas)
@@ -199,15 +206,25 @@ object SynthOccultations extends JFXApp {
           }
         }
       }
-      val saveImageItem = new MenuItem("Save Image")
-      saveImageItem.onAction = (e: ActionEvent) => {
-        ???
+      val saveItem = new MenuItem("Save Scans")
+      saveItem.onAction = (e: ActionEvent) => {
+        val chooser = new FileChooser
+        val file = chooser.showSaveDialog(stage)
+        if(file != null) {
+          Future {
+            val pw = new PrintWriter(file)
+            for(i <- so.indices; scan <- so(i)) {
+              pw.println(s"$i ${scan.sx} ${scan.sy} ${scan.ex} ${scan.ey} ${scan.intensity}")
+            }
+            pw.close
+          }
+        }
       }
       val exitItem = new MenuItem("Exit")
       exitItem.onAction = (e: ActionEvent) => {
         sys.exit(0)
       }
-      menu.items = List(openItem, saveImageItem, new SeparatorMenuItem, exitItem)
+      menu.items = List(openItem, saveItem, new SeparatorMenuItem, exitItem)
       menuBar.menus += menu
 
       val lengthField = new TextField
@@ -256,9 +273,9 @@ object SynthOccultations extends JFXApp {
       processOccultation()
 
       def processOccultation(): Unit = {
-        val so = multipleCuts(0, 0, thetaField.text.value.toDouble * math.Pi / 180, phiField.text.value.toDouble * math.Pi / 180,
+        so = multipleCuts(0, 0, thetaField.text.value.toDouble * math.Pi / 180, phiField.text.value.toDouble * math.Pi / 180,
           cutThetaField.text.value.toDouble * math.Pi / 180, lengthField.text.value.toDouble / 136505500, gapField.text.value.toDouble / 136505500,
-          beamWidthField.text.value.toDouble / 136505500, binData, zmin, zmax, 1000, spreadField.text.value.toDouble / 136505500)
+          beamWidthField.text.value.toDouble / 136505500, binData, zmin, zmax, 10000, spreadField.text.value.toDouble / 136505500)
         val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number](((sc.sx + sc.ex) / 2 + i * (binData.xmax - binData.xmin))*136505.5, sc.intensity)))
         Platform.runLater {
           occult.data = ObservableBuffer(XYChart.Series("Intensity", ObservableBuffer(chartData: _*)))
@@ -273,6 +290,7 @@ object SynthOccultations extends JFXApp {
         gc.save
         gc.translate(canvas.width.value/2, canvas.height.value/2)
         gc.scale(canvas.width.value / (binData.xmax - binData.xmin), -canvas.height.value / (binData.ymax - binData.ymin))
+        gc.translate(-(binData.xmax+binData.xmin)*0.5, -(binData.ymax+binData.ymin)*0.5)
         gc.fill = Color.Black
         println("Draw particles")
         for (p <- data) {
