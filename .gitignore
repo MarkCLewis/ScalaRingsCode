@@ -33,6 +33,7 @@ tmp/
 local.properties
 .settings/
 .loadpath
+.cache-main
 
 # Eclipse Core
 .project
