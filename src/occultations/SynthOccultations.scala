@@ -5,54 +5,35 @@ import scala.collection.mutable
 import scala.math.cos
 import scala.math.sin
 import data.CartAndRad
-import scalafx.application.JFXApp
 import util.Particle
 import util.Ray
 import util.Vect3D
-import scalafx.Includes._
-import scalafx.scene.Scene
-import scalafx.scene.image.WritableImage
-import scalafx.scene.image.ImageView
-import scalafx.scene.paint.Color
-import scalafx.scene.chart.ScatterChart
-import scalafx.scene.chart.NumberAxis
-import scalafx.collections.ObservableBuffer
-import scalafx.scene.chart.XYChart
-import scalafx.scene.chart.LineChart
-import scalafx.scene.layout.GridPane
-import scalafx.scene.layout.BorderPane
-import scalafx.scene.layout.HBox
-import scalafx.scene.control.MenuBar
-import scalafx.scene.canvas.Canvas
-import scalafx.scene.control.Label
-import scalafx.scene.control.TextField
-import scalafx.scene.control.Button
-import scalafx.event.ActionEvent
-import scalafx.scene.layout.FlowPane
-import scalafx.scene.control.Menu
-import scalafx.scene.control.MenuItem
-import scalafx.scene.control.SeparatorMenuItem
-import scalafx.stage.FileChooser
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
-import scalafx.application.Platform
 import java.io.PrintWriter
-import scalafx.scene.effect.BlendMode
 
-object SynthOccultations extends JFXApp {
-  case class BinData(xmin: Double, xmax: Double, ymin: Double, ymax: Double, binSize: Double, bins: IndexedSeq[IndexedSeq[IndexedSeq[Particle]]])
+object SynthOccultations {
+  case class BinData(xmin: Double, xmax: Double, ymin: Double, ymax: Double, binSize: Double, bins: IndexedSeq[IndexedSeq[IndexedSeq[Particle]]]) {
+    lazy val zmin = bins.view.map(r => r.view.map(c => if(c.isEmpty) 1e100 else c.view.map(_.z).min).min).min
+    lazy val zmax = bins.view.map(r => r.view.map(c => if(c.isEmpty) -1e100 else c.view.map(_.z).max).max).max
+    lazy val maxRadius = bins.view.map(r => r.view.map(c => if(c.isEmpty) -1e100 else c.view.map(_.rad).max).max).max
+    def gridXMin(bin:Int) = xmin+bin*binSize
+    def gridXMax(bin:Int) = (xmin+1)+bin*binSize
+    def gridYMin(bin:Int) = ymin+bin*binSize
+    def gridYMax(bin:Int) = (ymin+1)+bin*binSize
+  }
 
   case class Photon(x: Double, y: Double, hit: Boolean)
   case class Scan(sx: Double, sy: Double, ex: Double, ey: Double, intensity: Double, photons: Seq[Photon])
 
   def multipleCuts(x: Double, y: Double, theta: Double, phi: Double, cutTheta: Double, scanLength: Double,
-    offLength: Double, beamSize: Double, binData: BinData, zmin: Double, zmax: Double, photons: Int, cutSpread: Double): Seq[Seq[Scan]] = {
+    offLength: Double, beamSize: Double, height: Double, binData: BinData, photons: => Int, cutSpread: Double): Seq[Seq[Scan]] = {
     var my = y
     while (my - cutSpread > binData.ymin) my -= cutSpread
     val ret = mutable.ArrayBuffer[Seq[Scan]]()
     while (my < binData.ymax) {
-      println("Cut at " + my)
-      ret += syntheticOccultation(x, my, theta, phi, cutTheta, scanLength, offLength, beamSize, binData, zmin, zmax, photons)
+//      println("Cut at " + my)
+      ret += syntheticOccultation(x, my, theta, phi, cutTheta, scanLength, offLength, beamSize, height, binData, photons)
       my += cutSpread
     }
     ret
@@ -69,35 +50,38 @@ object SynthOccultations extends JFXApp {
    * @param beamSize The radius of the beam in the ring plane
    */
   def syntheticOccultation(x: Double, y: Double, theta: Double, phi: Double, cutTheta: Double, scanLength: Double,
-    offLength: Double, beamSize: Double, binData: BinData, zmin: Double, zmax: Double, photonCount: Int): Seq[Scan] = {
+    offLength: Double, beamSize: Double, height: Double, binData: BinData, photonCount: => Int): Seq[Scan] = {
     val rDir = Vect3D(cos(theta) * cos(phi), sin(theta) * cos(phi), sin(phi))
     val dx = math.cos(cutTheta)
     val dy = math.sin(cutTheta)
-    val height = zmin.abs max zmax
-    val xstart = binData.xmin + rDir.x * height
-    val xend = binData.xmax - rDir.x * height
+    val xstart = binData.xmin + rDir.x.abs * height
+    val xend = binData.xmax - rDir.x.abs * height
+//    println(s"$height, $xstart, $xend, $rDir")
     var mx = xstart
     val ret = mutable.Buffer[Scan]()
-    while (mx < xend) {
+    while (mx < xend-scanLength) {
       val sx = mx
-      val sy = y + (math.tan(cutTheta) * (sx - x))
-      val ex = sx + scanLength * math.cos(cutTheta)
-      val ey = y + (math.tan(cutTheta) * (ex - x))
-      val photons = (1 to photonCount).par.map(_ => {
+      val sy = y + (ret.length * scanLength) * dy
+      val ex = sx + scanLength * dx
+      val ey = sy + scanLength * dy
+      val pc = photonCount
+      val photons = (1 to pc).par.map(_ => {
         val t = math.random
         val rx = sx + t * (ex - sx) + math.random * math.random * beamSize
         val ry = sy + t * (ey - sy) + math.random * math.random * beamSize
-        Photon(rx, ry, rayGridIntersect(Ray(Vect3D(rx, ry, 0), rDir), binData, zmin, zmax))
+        if(rx < binData.xmin || rx > binData.xmax) println(s"Oops x! $rx, ${binData.xmin} ${binData.xmax}")
+        if(ry < binData.ymin || ry > binData.ymax) println(s"Oops y! $ry, ${binData.ymin} ${binData.ymax}")
+        Photon(rx, ry, rayGridIntersect(Ray(Vect3D(rx, ry, 0), rDir), binData))
       })
-      ret += Scan(sx, sy, ex, ey, photons.count(p => !p.hit).toDouble / photonCount, photons.seq)
-      mx += (scanLength + offLength) * math.cos(cutTheta)
+      ret += Scan(sx, sy, ex, ey, photons.count(p => !p.hit).toDouble / pc, photons.seq)
+      mx += (scanLength + offLength) * dx
     }
     ret
   }
 
-  def rayGridIntersect(r: Ray, binData: BinData, zmin: Double, zmax: Double): Boolean = {
-    val tmin = (zmin - r.r0.z) / r.r.z
-    val tmax = (zmax - r.r0.z) / r.r.z
+  def rayGridIntersect(r: Ray, binData: BinData): Boolean = {
+    val tmin = (binData.zmin - r.r0.z) / r.r.z
+    val tmax = (binData.zmax - r.r0.z) / r.r.z
     val xmin = r.r0.x + tmin * r.r.x
     val xmax = r.r0.x + tmax * r.r.x
     val ymin = r.r0.y + tmin * r.r.y
@@ -112,7 +96,61 @@ object SynthOccultations extends JFXApp {
   }
 
   def rayBinIntersect(r: Ray, xbin: Int, ybin: Int, binData: BinData): Boolean = {
-    binData.bins(xbin)(ybin).exists(p => rayParticleIntersect(r, p))
+    val xminTime = if(r.r.x == 0.0) -1e100 else (binData.gridXMin(xbin) - r.r0.x) / r.r.x
+    val xmaxTime = if(r.r.x == 0.0) 1e100 else (binData.gridXMax(xbin) - r.r0.x) / r.r.x
+    val yminTime = if(r.r.y == 0.0) -1e100 else (binData.gridYMin(ybin) - r.r0.y) / r.r.y
+    val ymaxTime = if(r.r.y == 0.0) 1e100 else (binData.gridYMax(ybin) - r.r0.y) / r.r.y
+    val xEnter = xminTime min xmaxTime
+    val yEnter = yminTime min ymaxTime
+    val xExit = xminTime max xmaxTime
+    val yExit = yminTime max ymaxTime
+    if(xEnter < yExit && xEnter < xExit) {
+      val enterTime = xEnter max yEnter
+      val exitTime = xExit min yExit
+      val zEnter = r.r0.z + enterTime * r.r.z
+      val zExit = r.r0.z + exitTime * r.r.z
+      if(binData.bins(xbin)(ybin).nonEmpty && zEnter < binData.bins(xbin)(ybin).last.z && zExit > binData.bins(xbin)(ybin).head.z) {
+        val enterIndex = firstParticleTouchingZ(zEnter, binData.bins(xbin)(ybin), binData.maxRadius)
+        val exitIndex = lastParticleTouchingZ(zExit, binData.bins(xbin)(ybin), binData.maxRadius) min binData.bins(xbin)(ybin).length-1
+        (enterIndex to exitIndex).exists(i => {
+//          println(s"$i, $xbin, $ybin, ${binData.bins(xbin)(ybin).length}")
+          rayParticleIntersect(r, binData.bins(xbin)(ybin)(i))
+        })
+      } else false
+    } else false
+  }
+  
+  def binarySearchZ(z:Double, parts:IndexedSeq[Particle]):Int = {
+    def helper(start: Int, end: Int): Int = {
+      if(end-start < 2) start
+      else {
+        val mid = (start+end)/2
+        if(parts(mid).z == z) mid
+        else if(parts(mid).z < z) helper(mid+1, end)
+        else helper(start, mid)
+      }
+    }
+    helper(0, parts.length)
+  }
+  
+  def firstParticleTouchingZ(z:Double, parts:IndexedSeq[Particle], maxRadius:Double):Int = {
+    var index = binarySearchZ(z, parts)
+    var i = index-1
+    while(i >= 0 && (parts(i).z-z).abs < maxRadius) {
+      if((parts(i).z-z).abs < parts(i).rad) index = i
+      i -= 1
+    }
+    index
+  }
+
+  def lastParticleTouchingZ(z:Double, parts:IndexedSeq[Particle], maxRadius:Double):Int = {
+    var index = binarySearchZ(z, parts)
+    var i = index+1
+    while(i < parts.length && (parts(i).z-z).abs < maxRadius) {
+      if((parts(i).z-z).abs < parts(i).rad) index = i
+      i += 1
+    }
+    index
   }
 
   def rayParticleIntersect(r: Ray, part: Particle): Boolean = {
@@ -133,178 +171,17 @@ object SynthOccultations extends JFXApp {
     val dy = ymax - ymin
     val partsPerBin = 1.0
     val binSize = math.sqrt(dx * dy * partsPerBin / parts.length) max maxRad
-    println(s"$dx $dy $maxRad $binSize ${math.ceil(dx / binSize)} ${dx * dy * partsPerBin / parts.length} $xmax $xmin")
-    val ret = Array.fill(math.ceil(dx / binSize).toInt)(Array.fill(math.ceil(dy / binSize).toInt)(mutable.ArrayBuffer[Particle]()): IndexedSeq[mutable.ArrayBuffer[Particle]])
+//    println(s"$dx $dy $maxRad $binSize ${math.ceil(dx / binSize)} ${dx * dy * partsPerBin / parts.length} $xmax $xmin")
+    val ret = Array.fill(math.ceil(dx / binSize).toInt)(mutable.ArrayBuffer.fill(math.ceil(dy / binSize).toInt)(mutable.ArrayBuffer[Particle]()))
     for (i <- parts.indices) {
       val binx = ((parts(i).x - xmin) / binSize).toInt min ret.length - 1
       val biny = ((parts(i).y - ymin) / binSize).toInt min ret(0).length - 1
       ret(binx)(biny) += parts(i)
     }
+    for(i <- ret.indices; j <- ret(i).indices) {
+      ret(i)(j) = ret(i)(j).sortBy(_.z)
+    }
     BinData(xmin, xmax, ymin, ymax, binSize, ret)
   }
 
-  var data = CartAndRad.read(new File("/home/mlewis/Rings/JoshCDAP/a=80000:q=2.8:min=1e-9:max=1e-8:rho=0.7:sigma=10/CartAndRad.3880.bin"))
-//  var data = CartAndRad.read(new File("/home/mlewis/Rings/KeelerGap/Straw60gcm2/CartAndRad.18000.bin"),-1700/136505.5,-1300/136505.5)
-
-  println("Data read")
-
-  var binData = binParticles(data)
-  var so:Seq[Seq[Scan]] = Nil
-
-  val (zmin, zmax) = {
-    val sorted = data.map(_.z).sorted
-    (sorted(100), sorted(sorted.length - 100))
-  }
-
-  println(binData.xmin, binData.xmax, binData.ymin, binData.ymax, binData.binSize, binData.bins.length, binData.bins(0).length)
-
-  val length = 20.0
-  val gap = 0.0
-  val beamWidth = 5.0
-  val theta = 0.0
-  val phi = 90
-  val cutTheta = 0.0
-  val spread = 500.0
-
-  stage = new JFXApp.PrimaryStage {
-    title = "Show Bins"
-    scene = new Scene(1600, 850) {
-
-      //      val wimg = new WritableImage(binData.bins.length, binData.bins(0).length)
-      //      val writer = wimg.pixelWriter
-      //      for (i <- binData.bins.indices; j <- binData.bins(i).indices) {
-      //        if(j==0) println(i)
-      //        if (rayGridIntersect(Ray(Vect3D(binData.xmin + i * binData.binSize, binData.ymin + j * binData.binSize, 0), Vect3D(2, 0, 1)), binData, zmin, zmax)) writer.setColor(i, j, Color.Black)
-      //        else writer.setColor(i, j, Color.White)
-      //      }
-      //      content = new ImageView(wimg)
-
-      val occult = new LineChart(NumberAxis("Radial Distance [km]"), NumberAxis("Fractional Transmission"))
-      occult.minWidth = 800
-      occult.minHeight = 800
-
-      val canvas = new Canvas(800, 800)
-      val gc = canvas.graphicsContext2D
-//      gc.globalBlendMode = BlendMode.Overlay
-
-      val grid = new GridPane
-      grid.children = List(occult, canvas)
-      GridPane.setConstraints(occult, 0, 0)
-      GridPane.setConstraints(canvas, 1, 0)
-
-      val menuBar = new MenuBar
-      val menu = new Menu("File")
-      val openItem = new MenuItem("Open")
-      openItem.onAction = (e: ActionEvent) => {
-        val chooser = new FileChooser
-        val file = chooser.showOpenDialog(stage)
-        if (file != null) {
-          Future {
-            data = CartAndRad.read(file)
-            binData = binParticles(data)
-            processOccultation()
-          }
-        }
-      }
-      val saveItem = new MenuItem("Save Scans")
-      saveItem.onAction = (e: ActionEvent) => {
-        val chooser = new FileChooser
-        val file = chooser.showSaveDialog(stage)
-        if(file != null) {
-          Future {
-            val pw = new PrintWriter(file)
-            for(i <- so.indices; scan <- so(i)) {
-              pw.println(s"$i ${scan.sx} ${scan.sy} ${scan.ex} ${scan.ey} ${scan.intensity}")
-            }
-            pw.close
-          }
-        }
-      }
-      val exitItem = new MenuItem("Exit")
-      exitItem.onAction = (e: ActionEvent) => {
-        sys.exit(0)
-      }
-      menu.items = List(openItem, saveItem, new SeparatorMenuItem, exitItem)
-      menuBar.menus += menu
-
-      val lengthField = new TextField
-      lengthField.text = length.toString
-      lengthField.prefWidth = 100
-      val gapField = new TextField
-      gapField.text = gap.toString
-      gapField.prefWidth = 100
-      val beamWidthField = new TextField
-      beamWidthField.text = beamWidth.toString
-      beamWidthField.prefWidth = 100
-      val thetaField = new TextField
-      thetaField.text = theta.toString
-      thetaField.prefWidth = 100
-      val phiField = new TextField
-      phiField.text = phi.toString
-      phiField.prefWidth = 100
-      val cutThetaField = new TextField
-      cutThetaField.text = cutTheta.toString
-      cutThetaField.prefWidth = 100
-      val spreadField = new TextField
-      spreadField.text = spread.toString
-      spreadField.prefWidth = 100
-      val button = new Button("Process")
-      val settings = new FlowPane(10, 10)
-      settings.children = List(new Label("Length:"), lengthField, new Label("Gap:"), gapField,
-        new Label("Beam Width:"), beamWidthField, new Label("Theta:"), thetaField,
-        new Label("Phi:"), phiField, new Label("Cut Theta:"), cutThetaField,
-        new Label("Spread:"), spreadField, button)
-      button.onAction = (e: ActionEvent) => {
-        Future { processOccultation() }
-      }
-
-      val border = new BorderPane
-      border.top = menuBar
-      border.bottom = settings
-      border.center = grid
-
-      root = border
-      
-//      occult.prefWidth <== scene.width/2
-//      occult.prefHeight <== scene.height-settings.height-menuBar.height
-//      canvas.width <== scene.width/2
-//      canvas.height <== scene.height-settings.height-menuBar.height
-
-      processOccultation()
-
-      def processOccultation(): Unit = {
-        so = multipleCuts(0, 0, thetaField.text.value.toDouble * math.Pi / 180, phiField.text.value.toDouble * math.Pi / 180,
-          cutThetaField.text.value.toDouble * math.Pi / 180, lengthField.text.value.toDouble / 136505500, gapField.text.value.toDouble / 136505500,
-          beamWidthField.text.value.toDouble / 136505500, binData, zmin, zmax, 10000, spreadField.text.value.toDouble / 136505500)
-        val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number](((sc.sx + sc.ex) / 2 + i * (binData.xmax - binData.xmin))*136505.5, sc.intensity)))
-        Platform.runLater {
-          occult.data = ObservableBuffer(XYChart.Series("Intensity", ObservableBuffer(chartData: _*)))
-          drawCanvas(so)
-        }
-      }
-
-      def drawCanvas(scanData: Seq[Seq[Scan]]): Unit = {
-        println(canvas.width.value+" "+canvas.height.value)
-        gc.fill = Color.White
-        gc.fillRect(0, 0, canvas.width.value, canvas.height.value)
-        gc.save
-        gc.translate(canvas.width.value/2, canvas.height.value/2)
-        gc.scale(canvas.width.value / (binData.xmax - binData.xmin), -canvas.height.value / (binData.ymax - binData.ymin))
-        gc.translate(-(binData.xmax+binData.xmin)*0.5, -(binData.ymax+binData.ymin)*0.5)
-        gc.fill = Color.Black
-        println("Draw particles")
-        for (p <- data) {
-          gc.fillOval(p.x - p.rad, p.y - p.rad, p.rad * 2, p.rad * 2)
-        }
-        println("Draw photons")
-        val size = 0.5*(binData.xmax - binData.xmin) / canvas.width.value
-        for (slice <- scanData; scan <- slice; photon <- scan.photons) {
-          gc.fill = if (photon.hit) Color.Red else Color.Green
-          gc.fillOval(photon.x - size, photon.y - size, 2 * size, 2 * size)
-        }
-        println("Done drawing")
-        gc.restore
-      }
-    }
-  }
 }

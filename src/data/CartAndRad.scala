@@ -11,8 +11,6 @@ object CartAndRad {
   def read(file:File, ymin:Double = Double.MinValue, ymax:Double = Double.MaxValue):IndexedSeq[Particle] = {
     val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))
     val num = readInt(dis)
-//    val cartOnly = Array.fill(num)(readCart(dis))
-//    cartOnly.map(_.copy(rad = readDouble(dis))).filter(p => p.y>ymin && p.y<ymax)
     val parts = (0 until num).view.map(i => readCart(dis, i)).filter(p => p.y>ymin && p.y<ymax).force.toArray
     var j = 0
     for(i <- parts.indices) yield {
