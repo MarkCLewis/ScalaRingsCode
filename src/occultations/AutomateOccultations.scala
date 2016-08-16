@@ -4,6 +4,7 @@ import java.io.File
 import org.apache.commons.math3.distribution.PoissonDistribution
 import SynthOccultations._
 import util.Particle
+import java.io.PrintWriter
 
 object AutomateOccultations extends App {
   case class MeasurementDetails(
@@ -66,38 +67,42 @@ object AutomateOccultations extends App {
   // Use number of photons with a mean of i0/1000 taken from a Poisson distribution
 
   val dataSets = collection.mutable.Map[(Simulation, Int), (IndexedSeq[Particle], BinData)]()
+  
+  val pw = new PrintWriter("occultations.txt")
 
   for (star <- stars) {
     val poissonDist = new PoissonDistribution(star.i0 / 1000)
     val cutTheta = 0.0 // Currently radial
     val phi = (star.phiMin + star.phiMax) * 0.5 * math.Pi/180 // Decide how to pick this better
-    val scans = collection.mutable.Buffer[Scan]()
     for (Some(sim) <- simulations; if sim.r0 >= star.rmin && sim.r0 <= star.rmax) {
       val beamSize = 0.01 / sim.r0
       val cutSpread = 0.3 / sim.r0
       val scanLength = (star.rmax - star.rmin) / star.duration / sim.r0 / 1000 // Length in R_0 for a millisecond
       val maxStep = sim.maxFileNum 
       var step = sim.maxFileNum
-      while (scans.length < 1000 && step == sim.maxFileNum) { //step >= 2000) {
+      val scans = collection.mutable.Buffer[Scan]()
+      while (scans.length < 1000 && step >= 2000 && new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin").exists()) {
         if (!dataSets.contains(sim -> step)) {
           val particles = data.CartAndRad.read(new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin"))
           dataSets(sim -> step) = (particles -> binParticles(particles))
         }
         val (particles, binned) = dataSets(sim -> step)
+     		println(s"Using step $step with ${particles.length} particles.")
         val (zmin, zmax) = {
           val sorted = particles.map(_.z).sorted
           (sorted(100), sorted(sorted.length - 100))
         }
         scans ++= multipleCuts(0, 0, phi, star.B * math.Pi/180, cutTheta, scanLength,
           0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread).flatten
+        println("Scans length = "+scans.length)
         step -= 1000
       }
-      println(star)
-      println(sim)
-      println("Used orbits "+(step+1000)/1000.0+" to "+maxStep/1000.0)
-      println("Index\tPhotons\tTrans\tFraction")
+      pw.println(star)
+      pw.println(sim)
+      pw.println("Used orbits "+(step+1000)/1000.0+" to "+maxStep/1000.0)
+      pw.println("Index\tPhotons\tTrans\tFraction")
       for ((scan, i) <- scans.zipWithIndex) {
-        println(i + "\t" + scan.photons.length + "\t" + scan.photons.count(!_.hit) + "\t" + scan.intensity)
+        pw.println(i + "\t" + scan.photons.length + "\t" + scan.photons.count(!_.hit) + "\t" + scan.intensity)
       }
     }
   }

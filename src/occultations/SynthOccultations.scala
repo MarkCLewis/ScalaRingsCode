@@ -32,7 +32,7 @@ object SynthOccultations {
     while (my - cutSpread > binData.ymin) my -= cutSpread
     val ret = mutable.ArrayBuffer[Seq[Scan]]()
     while (my < binData.ymax) {
-//      println("Cut at " + my)
+      println("Cut at " + my)
       ret += syntheticOccultation(x, my, theta, phi, cutTheta, scanLength, offLength, beamSize, height, binData, photons)
       my += cutSpread
     }
@@ -56,7 +56,7 @@ object SynthOccultations {
     val dy = math.sin(cutTheta)
     val xstart = binData.xmin + rDir.x.abs * height
     val xend = binData.xmax - rDir.x.abs * height
-//    println(s"$height, $xstart, $xend, $rDir")
+    println(s"$height, $xstart, $xend, $rDir")
     var mx = xstart
     val ret = mutable.Buffer[Scan]()
     while (mx < xend-scanLength) {
@@ -65,6 +65,7 @@ object SynthOccultations {
       val ex = sx + scanLength * dx
       val ey = sy + scanLength * dy
       val pc = photonCount
+      val start = System.nanoTime()
       val photons = (1 to pc).par.map(_ => {
         val t = math.random
         val rx = sx + t * (ex - sx) + math.random * math.random * beamSize
@@ -73,6 +74,7 @@ object SynthOccultations {
         if(ry < binData.ymin || ry > binData.ymax) println(s"Oops y! $ry, ${binData.ymin} ${binData.ymax}")
         Photon(rx, ry, rayGridIntersect(Ray(Vect3D(rx, ry, 0), rDir), binData))
       })
+      println(s"Did $photonCount photons in ${(System.nanoTime()-start)*1e-9} seconds")
       ret += Scan(sx, sy, ex, ey, photons.count(p => !p.hit).toDouble / pc, photons.seq)
       mx += (scanLength + offLength) * dx
     }
@@ -169,9 +171,9 @@ object SynthOccultations {
     val maxRad = parts.foldLeft(0.0)((rad, p) => rad max p.rad)
     val dx = xmax - xmin
     val dy = ymax - ymin
-    val partsPerBin = 1.0
+    val partsPerBin = 10.0
     val binSize = math.sqrt(dx * dy * partsPerBin / parts.length) max maxRad
-//    println(s"$dx $dy $maxRad $binSize ${math.ceil(dx / binSize)} ${dx * dy * partsPerBin / parts.length} $xmax $xmin")
+    println(s"$dx $dy $maxRad $binSize ${math.ceil(dx / binSize)} ${dx * dy * partsPerBin / parts.length} $xmax $xmin")
     val ret = Array.fill(math.ceil(dx / binSize).toInt)(mutable.ArrayBuffer.fill(math.ceil(dy / binSize).toInt)(mutable.ArrayBuffer[Particle]()))
     for (i <- parts.indices) {
       val binx = ((parts(i).x - xmin) / binSize).toInt min ret.length - 1
