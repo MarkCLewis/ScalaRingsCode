@@ -16,7 +16,7 @@ object ParseToSwiftVis extends App {
     else {
       line match {
         case DataLine(index, photons, transmitted, intensity) =>
-          pw.println(s"$indexCount $index $photons $transmitted $intensity")
+          pw.println(s"$indexCount $index  $photons $transmitted $intensity")
         case _ =>
       }
     }
