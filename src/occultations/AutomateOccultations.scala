@@ -5,6 +5,7 @@ import org.apache.commons.math3.distribution.PoissonDistribution
 import SynthOccultations._
 import util.Particle
 import java.io.PrintWriter
+import collection.JavaConverters._
 
 object AutomateOccultations extends App {
   case class MeasurementDetails(
@@ -43,10 +44,11 @@ object AutomateOccultations extends App {
     sigma: Double)
 
   val simDataDirectory = "/data/mlewis/Rings/JoshCDAP/"
-  val DirRegex = """a=(\d+):q=(.+):min=(.+):max=(.+):rho=(.+):sigma=(\d+)""".r
+  val DirRegex = """a=(\d+):q=(.+):min=(.+):max=(.+):rho=(.+):\w+=([0-9.]+)""".r
   val FileRegex = """CartAndRad\.(\d+)\.bin""".r
+	val directories = if(args.isEmpty) new File(simDataDirectory).list else args
 
-  val simulations = for (dirStr @ DirRegex(r0Str, qStr, minStr, maxStr, rhoStr, sigmaStr) <- new File(simDataDirectory).list) yield {
+  val simulations = for (dirStr @ DirRegex(r0Str, qStr, minStr, maxStr, rhoStr, sigmaStr) <- directories) yield {
     val dir = new File(simDataDirectory, dirStr)
     val num = {
       val files = dir.list
@@ -66,7 +68,8 @@ object AutomateOccultations extends App {
   // Check both uniform and non-uniform photon distributions
   // Use number of photons with a mean of i0/1000 taken from a Poisson distribution
 
-  val dataSets = collection.mutable.Map[(Simulation, Int), (IndexedSeq[Particle], BinData)]()
+  //val dataSets = collection.mutable.Map[(Simulation, Int), (IndexedSeq[Particle], BinData)]()
+  val dataSets = new java.util.WeakHashMap[(Simulation, Int), (IndexedSeq[Particle], BinData)]().asScala
   
   val pw = new PrintWriter("occultations.txt")
 
@@ -82,6 +85,7 @@ object AutomateOccultations extends App {
       var step = sim.maxFileNum
       val scans = collection.mutable.Buffer[Scan]()
       while (scans.length < 1000 && step >= 2000 && new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin").exists()) {
+				try {
         if (!dataSets.contains(sim -> step)) {
           val particles = data.CartAndRad.read(new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin"))
           dataSets(sim -> step) = (particles -> binParticles(particles))
@@ -95,6 +99,10 @@ object AutomateOccultations extends App {
         scans ++= multipleCuts(0, 0, phi, star.B * math.Pi/180, cutTheta, scanLength,
           0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread).flatten
         println("Scans length = "+scans.length)
+				} catch {
+					case ex:java.io.IOException =>
+						println("Problem reading "+new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin"))
+				}
         step -= 1000
       }
       pw.println(star)
