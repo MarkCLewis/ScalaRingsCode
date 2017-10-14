@@ -164,9 +164,9 @@ object SynthOccultations {
     b * b - 4 * a * c >= 0
   }
 
-  def binParticles(parts: IndexedSeq[Particle]): BinData = {
+  def binParticles(parts: IndexedSeq[Particle], yBuffer: Double = 0.0): BinData = {
     val (xmin, xmax, ymin, ymax) = parts.foldLeft(Double.MaxValue, Double.MinValue, Double.MaxValue, Double.MinValue)((acc, p) => {
-      (acc._1 min p.x, acc._2 max p.x, acc._3 min p.y, acc._4 max p.y)
+      (acc._1 min p.x, acc._2 max p.x, acc._3 min p.y - yBuffer, acc._4 max p.y + yBuffer)
     })
     val maxRad = parts.foldLeft(0.0)((rad, p) => rad max p.rad)
     val dx = xmax - xmin
