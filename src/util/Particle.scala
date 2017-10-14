@@ -4,7 +4,7 @@ case class Particle(x: Double, y: Double, z: Double, vx: Double, vy: Double, vz:
 
 }
 
-case class GCCoord(X: Double, Y: Double, e: Double, phi: Double, i: Double, zeta: Double) {
+case class GCCoord(X: Double, Y: Double, e: Double, phi: Double, i: Double, zeta: Double, rad: Double) {
 
 }
 
@@ -20,7 +20,7 @@ object GCCoord {
     val phi = math.atan2(p.y - Y, BETA * (X - p.x));
     val zeta = math.atan2(-p.vz, p.z);
     val i = (p.z / math.cos(zeta)).abs;
-    GCCoord(X, Y, e, phi, i, zeta)
+    GCCoord(X, Y, e, phi, i, zeta, p.rad)
   }
 }
     
