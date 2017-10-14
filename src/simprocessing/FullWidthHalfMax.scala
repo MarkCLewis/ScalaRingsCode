@@ -6,8 +6,10 @@ import java.io.File
 
 object FullWidthHalfMax extends App {
   for (arg <- args) {
+    println("Processing "+arg)
     val file = new File(arg)
     val dir = file.getParentFile()
+    println("Output to "+dir)
     val (names, data) = FixedBinned.read(arg)
     val pw = new PrintWriter(new File(dir,"fwhm.txt"))
     for (c <- data) {
@@ -21,6 +23,6 @@ object FullWidthHalfMax extends App {
     val s = 5
     val max = col.view.map(_(entry)).max
     val center = col.sliding(s).dropWhile(_.map(_(entry)).sum / s < max / 2).takeWhile(_.map(_(entry)).sum / s > max / 2).map(_(s / 2)).toArray
-    center.last(1) - center.head(1)
+    if(center.isEmpty) 0.0 else center.last(1) - center.head(1)
   }
 }
