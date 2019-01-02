@@ -8,17 +8,6 @@ import java.io.PrintWriter
 import collection.JavaConverters._
 
 object AutomateOccultations extends App {
-  case class MeasurementDetails(
-    star: String,
-    date: String,
-    B: Double, // Angle between ring plane and line if sight to the star, degrees 
-    phiMin: Double, // Angle between radial direction and line of sight dropped to the ring plane, counterclockwise, degrees
-    phiMax: Double,
-    rmin: Double, // km
-    rmax: Double, // km
-    duration: Double, // sec
-    i0: Double // Hz
-    )
 
   val stars = Vector(
     MeasurementDetails("α Vir (8) I", "2005-141", 17.2, 116.1, 150.2, 118979, 141954, 2546, 479000),
@@ -33,18 +22,8 @@ object AutomateOccultations extends App {
     MeasurementDetails("γ Peg (36) I", "2006–363", 20.3, 101.6, 156.6, 102296, 178178, 9939, 73000),
     MeasurementDetails("γ Peg (36) E", "2006–363", 20.3, 101.6, 55.7, 102296, 146785, 7172, 70100))
 
-  case class Simulation(
-    dir: File,
-    maxFileNum: Int,
-    r0: Double,
-    q: Double,
-    radMin: Double,
-    radMax: Double,
-    rho: Double,
-    sigma: Double)
-
   val simDataDirectory = "/home/mlewis/Rings/JoshCDAP15-17/"
-  val DirRegex = """a=(\d+):q=(.+):min=(.+):max=(.+):rho=(.+):\w+=([0-9.]+)""".r
+  val DirRegex = """a=(\d+\.0):q=(.+):min=(.+):max=(.+):rho=(.+):\w+=([\d.]+)""".r
   val FileRegex = """CartAndRad\.(\d+)\.bin""".r
 	val directories = if(args.isEmpty) new File(simDataDirectory).list else args
 
