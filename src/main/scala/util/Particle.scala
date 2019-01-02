@@ -1,7 +1,12 @@
 package util
 
 case class Particle(x: Double, y: Double, z: Double, vx: Double, vy: Double, vz: Double, rad: Double) {
-
+  def distance(p: Particle): Double = {
+    val dx = x - p.x
+    val dy = y - p.y
+    val dz = z - p.z
+    math.sqrt(dx * dx + dy * dy + dz * dz)
+  }
 }
 
 case class GCCoord(X: Double, Y: Double, e: Double, phi: Double, i: Double, zeta: Double, rad: Double) {
@@ -10,7 +15,7 @@ case class GCCoord(X: Double, Y: Double, e: Double, phi: Double, i: Double, zeta
 
 object GCCoord {
   val BETA = 2.0
-  
+
   def apply(p: Particle): GCCoord = {
     val X = (2.0 * p.x + p.vy) * 2.0;
     val Y = p.y - p.vx * BETA;
