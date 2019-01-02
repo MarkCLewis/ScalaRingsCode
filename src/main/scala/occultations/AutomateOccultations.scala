@@ -43,12 +43,12 @@ object AutomateOccultations extends App {
     rho: Double,
     sigma: Double)
 
-  val simDataDirectory = "/data/mlewis/Rings/JoshCDAP/"
+  val simDataDirectory = "/home/mlewis/Rings/JoshCDAP15-17/"
   val DirRegex = """a=(\d+):q=(.+):min=(.+):max=(.+):rho=(.+):\w+=([0-9.]+)""".r
   val FileRegex = """CartAndRad\.(\d+)\.bin""".r
 	val directories = if(args.isEmpty) new File(simDataDirectory).list else args
 
-  val simulations = for (dirStr @ DirRegex(r0Str, qStr, minStr, maxStr, rhoStr, sigmaStr) <- directories) yield {
+  val simulations = (for (dirStr @ DirRegex(r0Str, qStr, minStr, maxStr, rhoStr, sigmaStr) <- directories) yield {
     val dir = new File(simDataDirectory, dirStr)
     val num = {
       val files = dir.list
@@ -60,8 +60,8 @@ object AutomateOccultations extends App {
     val radMax = maxStr.toDouble
     val rho = rhoStr.toDouble
     val sigma = sigmaStr.toDouble
-    num.map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma))
-  }
+    num.filter(_ >= 10000).map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma))
+  }).flatten
 
   // 1000 measurements per second.
   // Calculate variance for 1000 measurements
@@ -77,7 +77,7 @@ object AutomateOccultations extends App {
     val poissonDist = new PoissonDistribution(star.i0 / 1000)
     val cutTheta = 0.0 // Currently radial
     val phi = (star.phiMin + star.phiMax) * 0.5 * math.Pi/180 // Decide how to pick this better
-    for (Some(sim) <- simulations; if sim.r0 >= star.rmin && sim.r0 <= star.rmax) {
+    for (sim <- simulations; if sim.r0 >= star.rmin && sim.r0 <= star.rmax) {
       val beamSize = 0.01 / sim.r0
       val cutSpread = 0.3 / sim.r0
       val scanLength = (star.rmax - star.rmin) / star.duration / sim.r0 / 1000 // Length in R_0 for a millisecond

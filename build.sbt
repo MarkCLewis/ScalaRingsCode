@@ -3,7 +3,6 @@ name := "ScalaRingsCode"
 organization := "edu.trinity"
 version := "0.1.0-SNAPSHOT"
 scalacOptions := Seq("-unchecked", "-deprecation")
-crossScalaVersions := Seq("2.11.12", "2.12.6")
 scalaVersion := "2.12.8"
 libraryDependencies += "org.scala-lang.modules" % "scala-swing_2.12" % "2.0.3"
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1"
