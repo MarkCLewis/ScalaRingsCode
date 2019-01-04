@@ -21,6 +21,11 @@ object RTRenderSim extends App {
   val saturnImage = javax.imageio.ImageIO.read(new File("/data/mlewis/Rings/AMNS-Moonlets/8k_saturn.jpg"))
   val saturnTexture = SphereTextureColorFunc(saturnImage, Point(-1, 0, 0))
   val saturnGeom = GeomSphere(Point(-1, 0, 0), 0.28, saturnTexture, p => 0)
+  val saturnLights = (for(i <- -60 to 60 by 60; j <- -60 to 60 by 60) yield {
+    val theta = i*math.Pi/180
+    val phi = j*math.Pi/180
+    PointLight(RTColor(0.025, 0.02, 0.015), Point(0.3*math.cos(theta)*math.cos(phi), 0.3*math.sin(theta)*math.cos(phi), 0.3*math.cos(phi)), Set(saturnGeom))
+  }).toList
   val backgroundSpecs = Seq(
       SimSpec(new File("/data/mlewis/Rings/AMNS-Moonlets/Equib/"), 10000, 10029),
       SimSpec(new File("/data/mlewis/Rings/AMNS-Moonlets/Equib/"), 11000, 11029),
@@ -35,10 +40,10 @@ object RTRenderSim extends App {
   val img = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_ARGB)
   val rtImg = new RTBufferedImage(img)
   val path = LinearViewPath(List(
-//      StopPoint(View(Point(0, 0, 5e-4), Vect(0, 0, -1), Vect(-1, 0, 0)), 1),
-      StopPoint(View(Point(0, 0, 2e-6), Vect(0, 0, -1), Vect(-1, 0, 0)), 1),
-      StopPoint(View(Point(1e-6, 0, 1e-6), Vect(-1, 0, 0), Vect(0, 0, 1)), 1)), 
-      List(/*10,*/ 5), LinearViewPath.SmoothEasing)
+      StopPoint(View(Point(0, 0, 5e-4), Vect(0, 0, -1), Vect(-1, 0, 0)), 1),
+      StopPoint(View(Point(0, 0, 2e-6), Vect(0, 0, -1), Vect(-1, 0, 0)), 10),
+      StopPoint(View(Point(1e-6, 0, 1e-6), Vect(-1, 0, 0), Vect(0, 0, 1)), 10)), 
+      List(10, 5), LinearViewPath.SmoothEasing)
   val frame = new MainFrame {
     title = "Trace Frame"
     contents = new Label("", Swing.Icon(img), Alignment.Center)
@@ -52,8 +57,7 @@ object RTRenderSim extends App {
     val stepTime = i*secsPerFrame/secsPerStep
     val geometry = new ListScene(saturnGeom, esbs.geometry(stepTime))
     val sunTheta = stepTime*math.Pi*2/1000
-    val lights = List(AmbientLight(RTColor(0.1, 0.1, 0.1)), 
-        PointLight(RTColor.White, Point(100*math.cos(sunElev)*math.cos(sunTheta), 100*math.cos(sunElev)*math.sin(sunElev), 100*math.sin(sunElev)))) 
+    val lights = PointLight(RTColor.White, Point(100*math.cos(sunElev)*math.cos(sunTheta), 100*math.cos(sunElev)*math.sin(sunElev), 100*math.sin(sunElev))) :: saturnLights 
     RayTrace.render(view, rtImg, geometry, lights, 10)
     frame.repaint()
     val istr = i.toString
