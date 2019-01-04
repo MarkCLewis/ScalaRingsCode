@@ -20,7 +20,7 @@ class ExtendedSlidingBoxSims(
     cellCountY:   Int,
     placedSpecs:  Map[(Int, Int), SimSpec],
     backgroundSpecs:    Seq[SimSpec],
-    shearRate:    Double = 1.5*2*math.Pi/1000,  // The 1.5 is from the linearized Hill's solution. The rest is 1000 steps per 2Pi units of time.
+    shearRate:    Double = -1.5*2*math.Pi/1000,  // The -1.5 is from the linearized Hill's solution. The rest is 1000 steps per 2Pi units of time.
     interpCutoff: Double = 1e-5,
     radiusScale:  Particle => Double = p => 1.0) {
 

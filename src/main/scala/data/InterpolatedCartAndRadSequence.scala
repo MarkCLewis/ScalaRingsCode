@@ -18,15 +18,16 @@ class InterpolatedCartAndRadSequence(dir: java.io.File, startIndex: Int, endInde
     if(index != interpData(0)._1) {
       for(i <- interpData.indices) interpData(i) = interpData.find(_._1 == index+i).getOrElse((index+i) -> CartAndRad.read(file(index+i)))
     }
-    if(index == time.toInt) interpData(0)._2
-    else if(index+1 == time.toInt) interpData(1)._2
+    if(index == time) interpData(0)._2
+    else if(index+1 == time) interpData(1)._2
     else {
-      for {
-        p1 <- interpData(0)._2
-        p2 <- interpData(1)._2
+      val frac = (time - index)/(interpData(1)._1 - interpData(0)._1)
+      (for {
+        i <- interpData(0)._2.indices.par
+        p1 = interpData(0)._2(i)
+        p2 = interpData(1)._2(i)
         if (p1 distance p2) < interpCutoff
       } yield {
-        val frac = (time - index)/(interpData(1)._1 - interpData(0)._1)
         val px = p1.x + frac * (p2.x - p1.x)
         val py = p1.y + frac * (p2.y - p1.y)
         val pz = p1.z + frac * (p2.z - p1.z)
@@ -34,7 +35,7 @@ class InterpolatedCartAndRadSequence(dir: java.io.File, startIndex: Int, endInde
         val pvy = p1.vy + frac * (p2.vy - p1.vy)
         val pvz = p1.vz + frac * (p2.vz - p1.vz)
         Particle(px, py, pz, pvx, pvy, pvz, p1.rad)
-      }
+      }).seq
     }
   }
 

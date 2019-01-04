@@ -35,23 +35,26 @@ object RTRenderSim extends App {
   val img = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_ARGB)
   val rtImg = new RTBufferedImage(img)
   val path = LinearViewPath(List(
-      StopPoint(View(Point(0, 0, 5e-4), Vect(0, 0, -1), Vect(-1, 0, 0)), 1),
+//      StopPoint(View(Point(0, 0, 5e-4), Vect(0, 0, -1), Vect(-1, 0, 0)), 1),
       StopPoint(View(Point(0, 0, 2e-6), Vect(0, 0, -1), Vect(-1, 0, 0)), 1),
       StopPoint(View(Point(1e-6, 0, 1e-6), Vect(-1, 0, 0), Vect(0, 0, 1)), 1)), 
-      List(10, 5), LinearViewPath.SmoothEasing)
-  val lights = List(AmbientLight(RTColor(0.1, 0.1, 0.1)), PointLight(RTColor.White, Point(100*math.cos(10*math.Pi/180), 0, 100*math.sin(10*math.Pi/180)))) 
-      // DirectionLight(RTColor.White, Vect(-math.cos(20*math.Pi/180), 0, -math.sin(20*math.Pi/180))))
+      List(/*10,*/ 5), LinearViewPath.SmoothEasing)
   val frame = new MainFrame {
     title = "Trace Frame"
     contents = new Label("", Swing.Icon(img), Alignment.Center)
   }
   frame.visible = true
   val secsPerFrame = 0.1
-  val secsPerStep = 45
+  val secsPerStep = 3 //45
+  val sunElev = 10.0*math.Pi/180
   for((view, i) <- path.atIntervals(secsPerFrame).zipWithIndex) {
     println(view)
-    val geometry = new ListScene(saturnGeom, esbs.geometry(i*secsPerFrame/secsPerStep))
-    RayTrace.render(view, rtImg, geometry, lights, 5)
+    val stepTime = i*secsPerFrame/secsPerStep
+    val geometry = new ListScene(saturnGeom, esbs.geometry(stepTime))
+    val sunTheta = stepTime*math.Pi*2/1000
+    val lights = List(AmbientLight(RTColor(0.1, 0.1, 0.1)), 
+        PointLight(RTColor.White, Point(100*math.cos(sunElev)*math.cos(sunTheta), 100*math.cos(sunElev)*math.sin(sunElev), 100*math.sin(sunElev)))) 
+    RayTrace.render(view, rtImg, geometry, lights, 10)
     frame.repaint()
     val istr = i.toString
     ImageIO.write(img, "PNG", new File(s"/data/mlewis/Rings/AMNS-Moonlets/Frame.${"0"*(4-istr.length)+istr}.png"))
