@@ -9,19 +9,22 @@ import util.Particle
  * reuse those if the new request is at a time adjacent to either.
  */
 class InterpolatedCartAndRadSequence(dir: java.io.File, startIndex: Int, endIndex: Int, interpCutoff: Double) {
-  private val steps = (startIndex to endIndex).filter { i => new java.io.File(dir, "CartAndRad."+i+".bin").exists() }
+  private val steps = (startIndex to endIndex).filter { i => new java.io.File(dir, "CartAndRad." + i + ".bin").exists() }
   private val interpData = Array.tabulate(2)(i => i -> CartAndRad.read(file(i)))
-  
+
   def particlesAtTime(time: Double): Seq[Particle] = {
     val modTime = time % (endIndex - startIndex)
-    val Some(index) = steps.indices.find(i => steps(i+1) - startIndex > modTime)
-    if(index != interpData(0)._1) {
-      for(i <- interpData.indices) interpData(i) = interpData.find(_._1 == index+i).getOrElse((index+i) -> CartAndRad.read(file(index+i)))
+    val Some(index) = steps.indices.find(i => steps(i + 1) - startIndex > modTime)
+    if (index != interpData(0)._1) {
+      for (i <- interpData.indices) interpData(i) = interpData.find(_._1 == index + i).getOrElse((index + i) -> CartAndRad.read(file(index + i)))
     }
-    if(index == time) interpData(0)._2
-    else if(index+1 == time) interpData(1)._2
+    val t1 = (steps(index) - startIndex) % (endIndex - startIndex)
+    val t2mod = (steps(index + 1) - startIndex) % (endIndex - startIndex)
+    val t2 = if(t2mod == 0.0) steps(index + 1) - startIndex else t2mod  // deal with the wrap at time == endStep
+    if (t1 == modTime) interpData(0)._2
+    else if (t2 == modTime) interpData(1)._2
     else {
-      val frac = (time - index)/(interpData(1)._1 - interpData(0)._1)
+      val frac = (time - t1) / (t2 - t1)
       (for {
         i <- interpData(0)._2.indices.par
         p1 = interpData(0)._2(i)
@@ -39,5 +42,5 @@ class InterpolatedCartAndRadSequence(dir: java.io.File, startIndex: Int, endInde
     }
   }
 
-  private def file(i: Int): java.io.File = new java.io.File(dir, "CartAndRad."+steps(i)+".bin")
+  private def file(i: Int): java.io.File = new java.io.File(dir, "CartAndRad." + steps(i) + ".bin")
 }

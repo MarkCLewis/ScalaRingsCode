@@ -14,15 +14,15 @@ import swiftvis2.raytrace.Vect
 import swiftvis2.raytrace.ListScene
 
 class ExtendedSlidingBoxSims(
-    cellSizeX:    Double,
-    cellSizeY:    Double,
-    cellCountX:   Int,
-    cellCountY:   Int,
-    placedSpecs:  Map[(Int, Int), SimSpec],
-    backgroundSpecs:    Seq[SimSpec],
-    shearRate:    Double = -1.5*2*math.Pi/1000,  // The -1.5 is from the linearized Hill's solution. The rest is 1000 steps per 2Pi units of time.
-    interpCutoff: Double = 1e-5,
-    radiusScale:  Particle => Double = p => 1.0) {
+  cellSizeX:       Double,
+  cellSizeY:       Double,
+  cellCountX:      Int,
+  cellCountY:      Int,
+  placedSpecs:     Map[(Int, Int), SimSpec],
+  backgroundSpecs: Seq[SimSpec],
+  shearRate:       Double                   = -1.5 * 2 * math.Pi / 1000, // The -1.5 is from the linearized Hill's solution. The rest is 1000 steps per 2Pi units of time.
+  interpCutoff:    Double                   = 1e-5,
+  radiusScale:     Particle => Double       = p => 1.0) {
 
   private val placedInterps = placedSpecs.mapValues(ss => new InterpolatedCartAndRadSequence(ss.dir, ss.startIndex, ss.endIndex, interpCutoff))
   private val backgroundInterps = backgroundSpecs.map(ss => new InterpolatedCartAndRadSequence(ss.dir, ss.startIndex, ss.endIndex, interpCutoff))
@@ -33,13 +33,18 @@ class ExtendedSlidingBoxSims(
     val interp = placedInterps.get(cx -> cy).getOrElse(backgroundInterps(scala.util.Random.nextInt(backgroundInterps.length)))
     CellData(cx * cellSizeX, cy * cellSizeY, interp)
   }
+  val minY = -cellCountY * cellSizeY - cellSizeY * 0.5
+  val maxY = cellCountY * cellSizeY + cellSizeY * 0.5
+  val totalWidth = maxY - minY
 
   def geometry(time: Double): Geometry = {
     val interpGeomMap = collection.mutable.Map[InterpolatedCartAndRadSequence, Geometry]()
     val cellGeometry = cells.map { cell =>
       val noOffsetGeom = interpGeomMap.get(cell.simSeq).getOrElse(new KDTreeGeometry(cell.simSeq.particlesAtTime(time).map(geometryForParticle)))
       interpGeomMap(cell.simSeq) = noOffsetGeom
-      OffsetGeometry(noOffsetGeom, Vect(cell.offsetX, cell.offsetY + shearRate * cell.offsetX * time, 0.0))
+      val unmoddedYOffset = cell.offsetY + shearRate * cell.offsetX * time - minY
+//      while (unmoddedYOffset > offsetWidth + cellSizeY * 0.5) unmoddedYOffset -= offsetWidth
+      OffsetGeometry(noOffsetGeom, Vect(cell.offsetX, minY + unmoddedYOffset % totalWidth, 0.0))
     }
     println(cellGeometry.length)
     cellGeometry foreach println
