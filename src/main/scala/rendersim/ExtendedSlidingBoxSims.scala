@@ -43,11 +43,8 @@ class ExtendedSlidingBoxSims(
       val noOffsetGeom = interpGeomMap.get(cell.simSeq).getOrElse(new KDTreeGeometry(cell.simSeq.particlesAtTime(time).map(geometryForParticle)))
       interpGeomMap(cell.simSeq) = noOffsetGeom
       val unmoddedYOffset = cell.offsetY + shearRate * cell.offsetX * time - minY
-//      while (unmoddedYOffset > offsetWidth + cellSizeY * 0.5) unmoddedYOffset -= offsetWidth
       OffsetGeometry(noOffsetGeom, Vect(cell.offsetX, minY + unmoddedYOffset % totalWidth, 0.0))
     }
-    println(cellGeometry.length)
-    cellGeometry foreach println
     new KDTreeGeometry(cellGeometry)
   }
 

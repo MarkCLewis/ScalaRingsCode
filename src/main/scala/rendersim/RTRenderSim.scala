@@ -43,7 +43,7 @@ object RTRenderSim extends App {
   val img = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_ARGB)
   val rtImg = new RTBufferedImage(img)
   val path = LinearViewPath(List(
-      StopPoint(View(Point(0, 0, 5e-4), Vect(0, 0, -1), Vect(-1, 0, 0)), 1),
+      StopPoint(View(Point(0, 0, 5e-4), Vect(0, 0, -1), Vect(-1, 0, 0)), 2),
       StopPoint(View(Point(7.4e-8, -1.8e-6, 4e-5), Vect(0, 0, -1), Vect(-1, 0, 0)), 10),
       StopPoint(View(Point(7.4e-8, -1.8e-6, 4e-6), Vect(0, 0, -1), Vect(-1, 0, 0)), 10),
       StopPoint(View(Point(2e-6, -1.8e-6, 7e-7), Vect(-1, 0, 0), Vect(0, 0, 1)), 10)), 

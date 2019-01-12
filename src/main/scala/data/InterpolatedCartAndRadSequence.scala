@@ -18,13 +18,14 @@ class InterpolatedCartAndRadSequence(dir: java.io.File, startIndex: Int, endInde
     if (index != interpData(0)._1) {
       for (i <- interpData.indices) interpData(i) = interpData.find(_._1 == index + i).getOrElse((index + i) -> CartAndRad.read(file(index + i)))
     }
-    val t1 = (steps(index) - startIndex) % (endIndex - startIndex)
-    val t2mod = (steps(index + 1) - startIndex) % (endIndex - startIndex)
-    val t2 = if(t2mod == 0.0) steps(index + 1) - startIndex else t2mod  // deal with the wrap at time == endStep
+    val t1 = steps(index) - startIndex
+    val t2 = steps(index + 1) - startIndex
+    println(s"dir = $dir, startIndex = $startIndex, time = $time, modTime = $modTime, index = $index, t1 = &t1, t2 = $t2")
     if (t1 == modTime) interpData(0)._2
     else if (t2 == modTime) interpData(1)._2
     else {
-      val frac = (time - t1) / (t2 - t1)
+      val frac = (modTime - t1) / (t2 - t1)
+      println(s"frac = $frac")
       (for {
         i <- interpData(0)._2.indices.par
         p1 = interpData(0)._2(i)
