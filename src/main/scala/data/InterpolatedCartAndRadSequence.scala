@@ -20,7 +20,7 @@ class InterpolatedCartAndRadSequence(dir: java.io.File, startIndex: Int, endInde
     }
     val t1 = steps(index) - startIndex
     val t2 = steps(index + 1) - startIndex
-    println(s"dir = $dir, startIndex = $startIndex, time = $time, modTime = $modTime, index = $index, t1 = &t1, t2 = $t2")
+    println(s"dir = $dir, startIndex = $startIndex, time = $time, modTime = $modTime, index = $index, t1 = $t1, t2 = $t2")
     if (t1 == modTime) interpData(0)._2
     else if (t2 == modTime) interpData(1)._2
     else {
