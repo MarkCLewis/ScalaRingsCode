@@ -6,6 +6,7 @@ import java.io.FileInputStream
 import scala.Vector
 import util.Particle
 import java.io.BufferedInputStream
+import LittleEndianReads._
 
 object CartAndRad {
   def read(file:File, ymin:Double = Double.MinValue, ymax:Double = Double.MaxValue):IndexedSeq[Particle] = {
@@ -21,12 +22,10 @@ object CartAndRad {
       parts(i) = parts(i).copy(rad = readDouble(dis))
       j += 1
     }
+    dis.close
     parts
   }
   
-  private def readInt(dis:DataInputStream) = Integer.reverseBytes(dis.readInt())
-  
-  private def readDouble(dis:DataInputStream) = java.lang.Double.longBitsToDouble(java.lang.Long.reverseBytes(dis.readLong))
   
   private def readCart(dis:DataInputStream, i:Double):Particle = {
     Particle(readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis), i)

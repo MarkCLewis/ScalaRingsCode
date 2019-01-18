@@ -7,10 +7,28 @@ case class Particle(x: Double, y: Double, z: Double, vx: Double, vy: Double, vz:
     val dz = z - p.z
     math.sqrt(dx * dx + dy * dy + dz * dz)
   }
+
+  def advance(dt: Double): Particle = {
+    GCCoord(this).advance(dt).toCart
+  }
 }
 
 case class GCCoord(X: Double, Y: Double, e: Double, phi: Double, i: Double, zeta: Double, rad: Double) {
+  def advance(dt: Double): GCCoord = {
+    copy(Y = Y - 1.5 * X * dt, phi = phi + dt, zeta = zeta + dt)
+  }
 
+  def toCart: Particle = {
+    val cosp=math.cos(phi)
+    val sinp=math.sin(phi)
+    val x = X-e*cosp
+    val y = Y+2.0*e*sinp
+    val z = i*math.cos(zeta)
+    val vx = e*sinp
+    val vy = 2.0*e*cosp-1.5*X
+    val vz = -i*math.sin(zeta)
+    Particle(x, y, z, vx, vy, vz, rad)
+  }
 }
 
 object GCCoord {
