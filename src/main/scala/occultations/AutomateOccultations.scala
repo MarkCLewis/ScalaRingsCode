@@ -32,7 +32,7 @@ object AutomateOccultations extends App {
     println("You need to specify a directory that exists.")
     sys.exit(0)
   }
-  val DirRegex = """a=([\d.]+):q=([\d.]+):min=([\d.e-]+):max=([\d.e-]+):rho=([\d.]+):\w+=([\d.]+)(.*)""".r
+  val DirRegex = """a=([\d.]+):q=([\d.]+):min=([\d.eE-]+):max=([\d.eE-]+):rho=([\d.]+):\w+=([\d.]+)(.*)""".r
   val FileRegex = """CartAndRad\.(\d+)\.bin""".r
 	val directories = simDataDirectoryFile.list
 	println("Directories = "+directories.mkString(", "))
