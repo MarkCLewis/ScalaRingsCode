@@ -30,8 +30,8 @@ object ProcessOccultations extends App {
           ret += OccultationData(curMeasure, curSim, curScan.reverse)
           curMeasure = MeasurementDetails(star, date, b.toDouble, phMin.toDouble, phiMax.toDouble, rmin.toDouble, rmax.toDouble, duration.toDouble, i0.toDouble)
           curScan = List[DataPoint]()
-        case Simulation.Regex(dir, maxFileNum, r0, q, radMin, radMax, rho, sigma) =>
-          curSim = Simulation(new File(dir), maxFileNum.toInt, r0.toDouble, q.toDouble, radMin.toDouble, radMax.toDouble, rho.toDouble, sigma.toDouble)
+        case Simulation.Regex(dir, maxFileNum, r0, q, radMin, radMax, rho, sigma, rest) =>
+          curSim = Simulation(new File(dir), maxFileNum.toInt, r0.toDouble, q.toDouble, radMin.toDouble, radMax.toDouble, rho.toDouble, sigma.toDouble, rest)
         case DataPointRegex(index, photons, transmitted, fraction) =>
           curScan ::= DataPoint(index.toInt, photons.toInt, transmitted.toInt, fraction.toDouble)
         case _ =>

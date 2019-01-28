@@ -22,13 +22,24 @@ object AutomateOccultations extends App {
     MeasurementDetails("γ Peg (36) I", "2006–363", 20.3, 101.6, 156.6, 102296, 178178, 9939, 73000),
     MeasurementDetails("γ Peg (36) E", "2006–363", 20.3, 101.6, 55.7, 102296, 146785, 7172, 70100))
 
-  val simDataDirectory = "/home/mlewis/Rings/JoshCDAP15-17/"
-  val DirRegex = """a=(\d+\.0):q=(.+):min=(.+):max=(.+):rho=(.+):\w+=([\d.]+)""".r
+  if(args.length < 1) {
+    println("Specify the directory above the simulation directory that you want to process.")
+    sys.exit(0)
+  }
+  val simDataDirectory = args(0) //"/home/mlewis/Rings/JoshCDAP15-17/"
+  val simDataDirectoryFile = new File(simDataDirectory)
+  if(!simDataDirectoryFile.exists()) {
+    println("You need to specify a directory that exists.")
+    sys.exit(0)
+  }
+  val DirRegex = """a=([\d.]+):q=([\d.]+):min=([\d.e-]+):max=([\d.e-]+):rho=([\d.]+):\w+=([\d.]+)(.*)""".r
   val FileRegex = """CartAndRad\.(\d+)\.bin""".r
-	val directories = if(args.isEmpty) new File(simDataDirectory).list else args
+	val directories = simDataDirectoryFile.list
+	println("Directories = "+directories.mkString(", "))
 
-  val simulations = (for (dirStr @ DirRegex(r0Str, qStr, minStr, maxStr, rhoStr, sigmaStr) <- directories) yield {
-    val dir = new File(simDataDirectory, dirStr)
+  val simulations = (for (dirStr @ DirRegex(r0Str, qStr, minStr, maxStr, rhoStr, sigmaStr, rest) <- directories) yield {
+    println(dirStr)
+    val dir = new File(simDataDirectoryFile, dirStr)
     val num = {
       val files = dir.list
       (for (f @ FileRegex(num) <- files) yield num.toInt).reduceLeftOption((n1, n2) => if (n1 > n2) n1 else n2)
@@ -39,7 +50,7 @@ object AutomateOccultations extends App {
     val radMax = maxStr.toDouble
     val rho = rhoStr.toDouble
     val sigma = sigmaStr.toDouble
-    num.filter(_ >= 10000).map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma))
+    num.filter(_ >= 10000).map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma, rest))
   }).flatten
 
   // 1000 measurements per second.
@@ -50,7 +61,7 @@ object AutomateOccultations extends App {
   //val dataSets = collection.mutable.Map[(Simulation, Int), (IndexedSeq[Particle], BinData)]()
   val dataSets = new java.util.WeakHashMap[(Simulation, Int), (IndexedSeq[Particle], BinData)]().asScala
   
-  val pw = new PrintWriter("occultations.txt")
+  val pw = new PrintWriter(new File(simDataDirectoryFile, "occultations.txt"))
 
   for (star <- stars) {
     val poissonDist = new PoissonDistribution(star.i0 / 1000)
