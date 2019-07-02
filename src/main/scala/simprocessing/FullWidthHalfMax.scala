@@ -13,8 +13,8 @@ object FullWidthHalfMax extends App {
     val (names, data) = FixedBinned.read(arg)
     val pw = new PrintWriter(new File(dir,"fwhm.txt"))
     for (c <- data) {
-      val (inner, outer) = c.splitAt(c.length / 2)
-      pw.println(s"${c(0)(0)} ${fwhm(inner, 4)} ${fwhm(inner, 9)} ${fwhm(outer, 4)} ${fwhm(outer, 9)}")
+      //val (inner, outer) = c.splitAt(c.length / 2)
+      pw.println(s"${c(0)(0)} ${fwhm(c, 4)} ${fwhm(c, 9)} ${fwhm(c, 4)} ${fwhm(c, 9)}")
     }
     pw.close
   }
