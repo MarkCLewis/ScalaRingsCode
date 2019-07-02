@@ -8,13 +8,13 @@ import swiftvis2.plotting.renderer.SwingRenderer
 import swiftvis2.plotting.styles.ScatterStyle
 
 object TestCollisionReading extends App {
-  val dir = new File("/data/mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4")
+  val dir = new File("/data/mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet1")
   val collSteps = HighVelocityCollisions.read(new File(dir, "HighVelColls.bin"))
   val cg = ColorGradient(0.0 -> BlackARGB, 5e-7 -> BlueARGB, 1e-6 -> GreenARGB, 2e-6 -> RedARGB)
   val updater1 = SwingRenderer(Plot.scatterPlot(1 to 10, 1 to 10), 1000, 1000, true)
   val updater2 = SwingRenderer(Plot.scatterPlot(1 to 10, 1 to 10), 1000, 1000, true)
   for (step <- collSteps.takeRight(5)) {
-    println(step.step + " " + step.colls.last.vel)
+    println(step.step + " " + step.colls.head.vel + " " + step.colls.last.vel)
     val carFile = new File(dir, "CartAndRad." + step.step + ".bin")
     // TODO: Make it filter around the moon and have the sizes of the particles scaled. Requires always reading the file to filter.
     if (carFile.exists) {
