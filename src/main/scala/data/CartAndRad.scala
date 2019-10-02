@@ -31,6 +31,11 @@ object CartAndRad {
     Particle(readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis), i)
   }
 
+  val FileRegex = """.*CartAndRad.(\d+).bin""".r
+  def findAllInDir(dir: File): Array[(String, Int)] = {
+    for (fname@FileRegex(step) <- dir.list()) yield (fname, step.toInt)
+  }
+
 //  val data = read(new File("/home/mlewis/Rings/JoshCDAP/a=100000:q=2.8:min=2e-9:max=2e-8:rho=0.7:sigma=200/CartAndRad.1020.bin"))
 //  println(data(0))
 //  println(data(1))

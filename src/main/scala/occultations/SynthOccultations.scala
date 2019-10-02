@@ -48,6 +48,9 @@ object SynthOccultations {
    * @param scanLength How long each scan covers when the shutter is open
    * @param offLength How long the scan moves when the shutter is closed
    * @param beamSize The radius of the beam in the ring plane
+   * @param height ???
+   * @param binData Binned data to do the occultation on
+   * @param photonCount Expression producing the number of photons for a particular bin
    */
   def syntheticOccultation(x: Double, y: Double, theta: Double, phi: Double, cutTheta: Double, scanLength: Double,
     offLength: Double, beamSize: Double, height: Double, binData: BinData, photonCount: => Int): Seq[Scan] = {
@@ -56,7 +59,7 @@ object SynthOccultations {
     val dy = math.sin(cutTheta)
     val xstart = binData.xmin + rDir.x.abs * height
     val xend = binData.xmax - rDir.x.abs * height
-    println(s"$height, $xstart, $xend, $rDir")
+    println(s"Occult Setting: $height, $xstart, $xend, $rDir")
     var mx = xstart
     val ret = mutable.Buffer[Scan]()
     while (mx < xend-scanLength) {

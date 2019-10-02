@@ -6,6 +6,7 @@ import swiftvis2.plotting._
 import swiftvis2.plotting.styles.ScatterStyle
 import swiftvis2.plotting.renderer.SwingRenderer
 import swiftvis2.plotting.ColorGradient
+import util.OrbitSpeed
 
 object HighVelsAnnulusPlot {
   def main(args: Array[String]): Unit = {
@@ -25,6 +26,8 @@ object HighVelsAnnulusPlot {
     val maxToTake = args(4).toInt
     val data = HighVelocityCollisions.read(file).filter(_.step >= startStep)
     println("Last step is "+data.last.step)
+    val allVels = data.flatMap(step => step.colls.map(_.vel)).sorted.takeRight(10)
+    println(s"Highest vels = ${allVels.map(v => OrbitSpeed(5e18, 391/(2.0/(3.0*4)+1), v))}")
     val cxs = data.flatMap(step => step.colls.take(maxToTake).reverse.map(c => 0.5*(c.p1.x+c.p2.x)))
     val cys = data.flatMap(step => step.colls.take(maxToTake).reverse.map(c => 0.5*(c.p1.y+c.p2.y)))
     val xs = (cxs, cys).zipped.map((x, y) => math.cos(y)*(1+x*xMult))
