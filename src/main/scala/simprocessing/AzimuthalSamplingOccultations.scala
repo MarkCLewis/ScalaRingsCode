@@ -7,6 +7,10 @@ import swiftvis2.plotting._
 import swiftvis2.plotting.styles.ScatterStyle
 import swiftvis2.plotting.styles.ScatterStyle.LineData
 import swiftvis2.plotting.renderer.SwingRenderer
+import swiftvis2.plotting.styles.PlotStyle
+import swiftvis2.plotting.Plot.TextData
+import swiftvis2.plotting.Plot.GridData
+import swiftvis2.plotting.renderer.Renderer
 
 object AzimuthalSamplingOccultations {
 	def main(args: Array[String]): Unit = {
@@ -25,12 +29,8 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 			(default: 1000)
 		-stepInterval=S
 			Minimum number of steps between analyzed data files. (default: 100)
-		-bmin=T
-			Minimum opening angle in degrees. (default: 5)
-		-bmax=T
-			Maximum opening angle in degrees. (default: 90)
-		-bStep=S
-			Number of degrees to step down from max toward min (default: 5)
+		-bvals=N1,N2,...
+			Values of b to use. (default: 5, 25, 45, 65, 85)
 		-R0=R
 			Value of R0 for this simulation is units of users choice. 
 			(default: 100000)
@@ -49,6 +49,7 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 			Will drop F*N particles from all edges of the cell to exclude extreme
 			outliers and improve binning. (default: 1e-3)
 		-showPlots
+		-savePlots
 """.trim())
 			sys.exit(0)
 		}
@@ -58,9 +59,7 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 		val dirs = fileArgs.drop(1)
 		val stepRange = argValue(args, "-stepRange", _.toInt, 1000)
 		val stepInterval = argValue(args, "-stepInterval", _.toInt, 100)
-		val bmin = argValue(args, "-bmin", _.toInt, 5)
-		val bmax = argValue(args, "-bmax", _.toInt, 90)
-		val bStep = argValue(args, "-bStep", _.toInt, 5)
+		val bvals = argValue(args, "-bvals", _.split(",").map(_.toDouble), Array(5.0, 25.0, 45.0, 65.0, 85.0))
 		val r0 = argValue(args, "-R0", _.toDouble, 1e5)
 		val scanLength = argValue(args, "-scanLength", _.toDouble, 0.01)/r0
 		val scanWidth = argValue(args, "-scanWidth", _.toDouble, 1e-3)/r0
@@ -72,6 +71,7 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 		}, () => pd.sample)
 		val dropFraction = argValue(args, "-dropFraction", _.toDouble, 1e-3)
 		val showPlots = args.contains("-showPlots")
+		val savePlots = args.contains("-savePlots")
 		
 		for (dir <- dirs) {
 			val dirFile = new File(dir)
@@ -84,7 +84,7 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 					else if (next._2 <= acc.head._2 - stepInterval) next :: acc
 					else acc
 				}
-				for ((fname, step)  <- cartFiles) yield {
+				val plotStyles = for ((fname, step)  <- cartFiles) yield {
 					pw.println(s"Step: $step ${lastStep - step}")
 					val allParticles = CartAndRad.read(new File(dirFile, fname))
 					val ndrop = (allParticles.length*dropFraction).toInt
@@ -96,7 +96,7 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 						(sorted(100).z, sorted(sorted.length - 100).z)
 					}
 					val binData = SynthOccultations.binParticles(coreParticles)
-					val scans = for (b <- bmax to bmin by -bStep) yield {
+					val scans = for (b <- bvals) yield {
 						pw.println(s"b: $b")
 						val synthData = SynthOccultations.syntheticOccultation(xmid, ymid, math.Pi/2, b * math.Pi / 180, 0, scanLength, 0.0, scanWidth, zmax-zmin, binData, photonFunc())
 						for ((scan, i) <- synthData.zipWithIndex) {
@@ -104,12 +104,11 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 						}
 						(synthData, b)
 					}
-					if (showPlots) {
+					val ps: (ScatterStyle, Seq[ScatterStyle]) = if (showPlots || savePlots) {
 						val cg = ColorGradient(0.0 -> BlueARGB, 90.0 -> GreenARGB)
 						val radii = coreParticles.map(_.rad * 2 *r0)
-						val plot = Plot.stacked(
-							ScatterStyle(coreParticles.map(_.x * r0), coreParticles.map(_.y * r0), symbolWidth = radii, symbolHeight = radii, xSizing = PlotSymbol.Sizing.Scaled,
-								ySizing = PlotSymbol.Sizing.Scaled, colors = BlackARGB) +:
+						(ScatterStyle(coreParticles.map(_.x * r0), coreParticles.map(_.y * r0), symbolWidth = radii, symbolHeight = radii, xSizing = PlotSymbol.Sizing.Scaled,
+								ySizing = PlotSymbol.Sizing.Scaled, colors = BlackARGB),
 							scans.map { case (scan, b) =>
 									ScatterStyle(scan.map(s => (s.sx + s.ex)/2*r0), scan.map(s => (s.ey + (s.photons.count(!_.hit).toDouble / numPhotons) * (binData.ymax - binData.ymin) * 0.4) * r0),
 										symbol = NoSymbol, 
@@ -117,8 +116,27 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 										colors = cg(b))
 							}
 						)
-						SwingRenderer(plot, 1000, 1000, true)
-					}
+					} else (null, Nil)
+					ps
+				}
+				if (showPlots || savePlots) {
+					val font = Renderer.FontData("Ariel", Renderer.FontStyle.Plain)
+					val photonCountAxis = NumericAxis(None, None, None, Axis.TickStyle.Both,
+						Some(Axis.LabelSettings(0.0, font, "%1.1f")), Some(Axis.NameSettings("Photon Count", font)), Axis.DisplaySide.Max)
+					val yAxes = plotStyles.map(_ => NumericAxis(None, None, None, Axis.TickStyle.Both,
+						Some(Axis.LabelSettings(0.0, font, "%1.1f")), Some(Axis.NameSettings("Azimuthal Position", font)), Axis.DisplaySide.Min))
+					val xAxis = NumericAxis(None, None, None, Axis.TickStyle.Both,
+						Some(Axis.LabelSettings(90.0, font, "%1.1f")), Some(Axis.NameSettings("Radial Position", font)), Axis.DisplaySide.Min)
+					val grid = PlotGrid(plotStyles.zipWithIndex.map { case ((cart, scans), i) =>
+						Seq(Seq(Plot2D(cart, "X", "Y"+i)), scans.map(scan => Plot2D(scan, "X", "Count"))) },
+						Map("X" -> xAxis, "Count" -> photonCountAxis) ++ yAxes.zipWithIndex.map { case (a, i) => ("Y"+i) -> a },
+						Seq(1.0, 1.0),
+						plotStyles.map(_ => 1.0)
+					)
+					val plot = Plot(Map("Title" -> TextData(PlotText(dir.filter(_ != '/')), Bounds(0, 0, 1.0, 0.05))),
+						Map("Main" -> GridData(grid, Bounds(0.01, 0.05, 0.99, 0.95))))
+					if (showPlots) SwingRenderer(plot, 1600, 800, true)
+					if (savePlots) SwingRenderer.saveToImage(plot, dir.filter(_ != '/') + ".png", "PNG", 1600, 800)
 				}
 			}
 		}
