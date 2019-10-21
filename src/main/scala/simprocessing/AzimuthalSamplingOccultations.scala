@@ -135,8 +135,10 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 					)
 					val plot = Plot(Map("Title" -> TextData(PlotText(dir.filter(_ != '/')), Bounds(0, 0, 1.0, 0.05))),
 						Map("Main" -> GridData(grid, Bounds(0.01, 0.05, 0.99, 0.95))))
-					if (showPlots) SwingRenderer(plot, 1600, 800, true)
-					if (savePlots) SwingRenderer.saveToImage(plot, dir.filter(_ != '/') + ".png", "PNG", 1600, 800)
+					val width = 600
+					val height = width / 2 * plotStyles.length
+					if (showPlots) SwingRenderer(plot, width, height, true)
+					if (savePlots) SwingRenderer.saveToImage(plot, dir.filter(_ != '/') + ".png", "PNG", width, height)
 				}
 			}
 		}
