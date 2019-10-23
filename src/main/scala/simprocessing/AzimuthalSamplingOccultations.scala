@@ -110,7 +110,7 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 						(ScatterStyle(coreParticles.map(_.x * r0), coreParticles.map(_.y * r0), symbolWidth = radii, symbolHeight = radii, xSizing = PlotSymbol.Sizing.Scaled,
 								ySizing = PlotSymbol.Sizing.Scaled, colors = BlackARGB),
 							scans.map { case (scan, b) =>
-									ScatterStyle(scan.map(s => (s.sx + s.ex)/2*r0), scan.map(s => (s.ey + (s.photons.count(!_.hit).toDouble / numPhotons) * (binData.ymax - binData.ymin) * 0.4) * r0),
+									ScatterStyle(scan.map(s => (s.sx + s.ex)/2*r0), scan.map(s => s.photons.count(!_.hit).toDouble),
 										symbol = NoSymbol, 
 										lines = Some(LineData(0)),
 										colors = cg(b))
@@ -121,11 +121,11 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 				}
 				if (showPlots || savePlots) {
 					val font = Renderer.FontData("Ariel", Renderer.FontStyle.Plain)
-					val photonCountAxis = NumericAxis(None, None, None, Axis.TickStyle.Both,
+					val photonCountAxis = NumericAxis("Count", None, None, None, Axis.TickStyle.Both,
 						Some(Axis.LabelSettings(0.0, font, "%1.1f")), Some(Axis.NameSettings("Photon Count", font)), Axis.DisplaySide.Max)
-					val yAxes = plotStyles.map(_ => NumericAxis(None, None, None, Axis.TickStyle.Both,
-						Some(Axis.LabelSettings(0.0, font, "%1.1f")), Some(Axis.NameSettings("Azimuthal Position", font)), Axis.DisplaySide.Min))
-					val xAxis = NumericAxis(None, None, None, Axis.TickStyle.Both,
+					val yAxes = plotStyles.zipWithIndex.map { case (_, i) => NumericAxis("Y"+i, None, None, None, Axis.TickStyle.Both,
+						Some(Axis.LabelSettings(0.0, font, "%1.1f")), Some(Axis.NameSettings("Azimuthal Position", font)), Axis.DisplaySide.Min) }
+					val xAxis = NumericAxis("X", None, None, None, Axis.TickStyle.Both,
 						Some(Axis.LabelSettings(90.0, font, "%1.1f")), Some(Axis.NameSettings("Radial Position", font)), Axis.DisplaySide.Min)
 					val grid = PlotGrid(plotStyles.zipWithIndex.map { case ((cart, scans), i) =>
 						Seq(Seq(Plot2D(cart, "X", "Y"+i)), scans.map(scan => Plot2D(scan, "X", "Count"))) },
@@ -135,8 +135,10 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 					)
 					val plot = Plot(Map("Title" -> TextData(PlotText(dir.filter(_ != '/')), Bounds(0, 0, 1.0, 0.05))),
 						Map("Main" -> GridData(grid, Bounds(0.01, 0.05, 0.99, 0.95))))
-					if (showPlots) SwingRenderer(plot, 1600, 800, true)
-					if (savePlots) SwingRenderer.saveToImage(plot, dir.filter(_ != '/') + ".png", "PNG", 1600, 800)
+					val width = 600
+					val height = width / 2 * plotStyles.length
+					if (showPlots) SwingRenderer(plot, width, height, true)
+					if (savePlots) SwingRenderer.saveToImage(plot, dir.filter(_ != '/') + ".png", "PNG", width, height)
 				}
 			}
 		}
