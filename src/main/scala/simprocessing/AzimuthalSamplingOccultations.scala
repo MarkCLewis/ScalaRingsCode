@@ -30,14 +30,14 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 		-stepInterval=S
 			Minimum number of steps between analyzed data files. (default: 100)
 		-bvals=N1,N2,...
-			Values of b to use. (default: 5, 25, 45, 65, 85)
+			Values of b to use. (default: 5,25,45,65,85)
 		-R0=R
 			Value of R0 for this simulation is units of users choice. 
 			(default: 100000)
 		-scanLength=L
 			Length of each scan segment in the occultation in same units as R0.
 			(default: 0.01)
-		-scanWidth=W
+		-beamSize=W1,W2,...
 			Scan width of occultations in same units as R0. (default: 1e-3)
 		-numPhotons=N
 			Number of photons sent in each scan. (default: 1000)
@@ -59,10 +59,10 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 		val dirs = fileArgs.drop(1)
 		val stepRange = argValue(args, "-stepRange", _.toInt, 1000)
 		val stepInterval = argValue(args, "-stepInterval", _.toInt, 100)
-		val bvals = argValue(args, "-bvals", _.split(",").map(_.toDouble), Array(5.0, 25.0, 45.0, 65.0, 85.0))
+		val bvals = argValue(args, "-bvals", _.split(",").map(_.toDouble).toSeq, Seq(5.0, 25.0, 45.0, 65.0, 85.0))
 		val r0 = argValue(args, "-R0", _.toDouble, 1e5)
 		val scanLength = argValue(args, "-scanLength", _.toDouble, 0.01)/r0
-		val scanWidth = argValue(args, "-scanWidth", _.toDouble, 1e-3)/r0
+		val beamSizes = argValue(args, "-beamSize", _.split(",").map(_.toDouble/r0).toSeq, Seq(1e-3/r0))
 		val numPhotons = argValue(args, "-numPhotons", _.toInt, 1000)
 		val pd = new PoissonDistribution(numPhotons)
 		val photonFunc = argValue(args, "-photonCountMethod", _ match {
@@ -84,6 +84,7 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 					else if (next._2 <= acc.head._2 - stepInterval) next :: acc
 					else acc
 				}
+				println(cartFiles)
 				val plotStyles = for ((fname, step)  <- cartFiles) yield {
 					pw.println(s"Step: $step ${lastStep - step}")
 					val allParticles = CartAndRad.read(new File(dirFile, fname))
@@ -96,24 +97,28 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 						(sorted(100).z, sorted(sorted.length - 100).z)
 					}
 					val binData = SynthOccultations.binParticles(coreParticles)
-					val scans = for (b <- bvals) yield {
-						pw.println(s"b: $b")
-						val synthData = SynthOccultations.syntheticOccultation(xmid, ymid, math.Pi/2, b * math.Pi / 180, 0, scanLength, 0.0, scanWidth, zmax-zmin, binData, photonFunc())
-						for ((scan, i) <- synthData.zipWithIndex) {
-							pw.println(s"$i\t${scan.photons.length}\t${scan.photons.count(!_.hit)}\t${scan.intensity}\t${scan.sx}\t${scan.sy}\t${scan.ex}\t${scan.ey}")
+					val scans = for (beamSize <- beamSizes) yield {
+						for (b <- bvals) yield {
+							pw.println(s"b: $b, beamSize: $beamSize")
+							val synthData = SynthOccultations.syntheticOccultation(xmid, ymid, math.Pi/2, b * math.Pi / 180, 0, scanLength, 0.0, beamSize, zmax-zmin, binData, photonFunc())
+							for ((scan, i) <- synthData.zipWithIndex) {
+								pw.println(s"$i\t${scan.photons.length}\t${scan.photons.count(!_.hit)}\t${scan.intensity}\t${scan.sx}\t${scan.sy}\t${scan.ex}\t${scan.ey}")
+							}
+							(synthData, b)
 						}
-						(synthData, b)
 					}
-					val ps: (ScatterStyle, Seq[ScatterStyle]) = if (showPlots || savePlots) {
+					val ps: (ScatterStyle, Seq[Seq[ScatterStyle]]) = if (showPlots || savePlots) {
 						val cg = ColorGradient(0.0 -> BlueARGB, 90.0 -> GreenARGB)
 						val radii = coreParticles.map(_.rad * 2 *r0)
 						(ScatterStyle(coreParticles.map(_.x * r0), coreParticles.map(_.y * r0), symbolWidth = radii, symbolHeight = radii, xSizing = PlotSymbol.Sizing.Scaled,
 								ySizing = PlotSymbol.Sizing.Scaled, colors = BlackARGB),
-							scans.map { case (scan, b) =>
+							for (beamRow <- scans) yield {
+								for ((scan, b) <- beamRow) yield {
 									ScatterStyle(scan.map(s => (s.sx + s.ex)/2*r0), scan.map(s => s.photons.count(!_.hit).toDouble),
 										symbol = NoSymbol, 
 										lines = Some(LineData(0)),
 										colors = cg(b))
+								}
 							}
 						)
 					} else (null, Nil)
@@ -128,15 +133,16 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 					val xAxis = NumericAxis("X", None, None, None, Axis.TickStyle.Both,
 						Some(Axis.LabelSettings(90.0, font, "%1.1f")), Some(Axis.NameSettings("Radial Position", font)), Axis.DisplaySide.Min)
 					val grid = PlotGrid(plotStyles.zipWithIndex.map { case ((cart, scans), i) =>
-						Seq(Seq(Plot2D(cart, "X", "Y"+i)), scans.map(scan => Plot2D(scan, "X", "Count"))) },
+						Seq(Plot2D(cart, "X", "Y"+i)) +: scans.map(_.map(scan => Plot2D(scan, "X", "Count"))) },
 						Map("X" -> xAxis, "Count" -> photonCountAxis) ++ yAxes.zipWithIndex.map { case (a, i) => ("Y"+i) -> a },
-						Seq(1.0, 1.0),
+						1.0 +: plotStyles.head._2.map(_ => 1.0),
 						plotStyles.map(_ => 1.0)
 					)
 					val plot = Plot(Map("Title" -> TextData(PlotText(dir.filter(_ != '/')), Bounds(0, 0, 1.0, 0.05))),
 						Map("Main" -> GridData(grid, Bounds(0.01, 0.05, 0.99, 0.95))))
-					val width = 600
-					val height = width / 2 * plotStyles.length
+					val plotBinSize = 300
+					val width = plotBinSize * (1 + plotStyles.head._2.length)
+					val height = plotBinSize * plotStyles.length
 					if (showPlots) SwingRenderer(plot, width, height, true)
 					if (savePlots) SwingRenderer.saveToImage(plot, dir.filter(_ != '/') + ".png", "PNG", width, height)
 				}
