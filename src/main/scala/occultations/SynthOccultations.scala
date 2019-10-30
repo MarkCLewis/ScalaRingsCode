@@ -72,7 +72,7 @@ object SynthOccultations {
       val photons = (1 to pc).par.map(_ => {
         val t = math.random
         val rang = math.Pi * 2 * math.random()
-        val rrad = math.random() * math.random()
+        val rrad = math.random()
         val rx = sx + t * (ex - sx) + rrad * beamSize * math.cos(rang)
         val ry = sy + t * (ey - sy) + rrad * beamSize * math.sin(rang)
         if(rx < binData.xmin || rx > binData.xmax) println(s"Oops x! $rx, ${binData.xmin} ${binData.xmax}")

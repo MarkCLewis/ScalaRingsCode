@@ -108,7 +108,7 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 						}
 					}
 					val ps: (ScatterStyle, Seq[Seq[ScatterStyle]]) = if (showPlots || savePlots) {
-						val cg = ColorGradient(0.0 -> BlueARGB, 90.0 -> GreenARGB)
+						val cg = ColorGradient(bvals.min -> BlueARGB, bvals.max -> GreenARGB)
 						val radii = coreParticles.map(_.rad * 2 *r0)
 						(ScatterStyle(coreParticles.map(_.x * r0), coreParticles.map(_.y * r0), symbolWidth = radii, symbolHeight = radii, xSizing = PlotSymbol.Sizing.Scaled,
 								ySizing = PlotSymbol.Sizing.Scaled, colors = BlackARGB),
