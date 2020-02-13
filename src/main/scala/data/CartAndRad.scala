@@ -7,10 +7,15 @@ import scala.Vector
 import util.Particle
 import java.io.BufferedInputStream
 import LittleEndianReads._
+import java.io.InputStream
 
 object CartAndRad {
   def read(file:File, ymin:Double = Double.MinValue, ymax:Double = Double.MaxValue):IndexedSeq[Particle] = {
-    val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))
+    readStream(new FileInputStream(file))
+  }
+
+  def readStream(is: InputStream, ymin:Double = Double.MinValue, ymax:Double = Double.MaxValue):IndexedSeq[Particle] = {
+    val dis = new DataInputStream(new BufferedInputStream(is))
     val num = readInt(dis)
     val parts = (0 until num).view.map(i => readCart(dis, i)).filter(p => p.y>ymin && p.y<ymax).force.toArray
     var j = 0
