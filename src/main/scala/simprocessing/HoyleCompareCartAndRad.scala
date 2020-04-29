@@ -14,6 +14,7 @@ object CompareCartAndRad extends App {
         sys.exit(0)
     } else {
         // Took these lines from ProcessCartAndRad.scala to process the files
+        // cartandrad.read both files
         println("Starting up")
         val files = new File(args(0)).listFiles((d: File, s: String) => s.startsWith("CartAndRad"))
         println(files.length)
