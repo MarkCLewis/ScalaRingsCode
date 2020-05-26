@@ -48,6 +48,6 @@ object FixedBinned {
     } finally {
       binIn.close()
     }
-    (paramNames ++ valueNames, dataVect)
+    (Array("x", "y") ++ paramNames ++ valueNames, dataVect)
   }
 }

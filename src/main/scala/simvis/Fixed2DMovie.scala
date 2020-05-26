@@ -27,8 +27,9 @@ object Fixed2DMovie {
       println("\t-height #: height of window/image in pixels, defaults to 1000")
       println("\t-display: tells if the image should be displayed in a window")
       println("\t-save prefix: tells if images should be saved and gives prefix")
-      println("\t-colorIndex #: the index of teh color element, default 2")
+      println("\t-colorIndex #: the index of the color element, default 4")
       println("\t-gradient value:hex,value:hex[,value:hex,...]. default 0.0:000000,1.0:ffffff")
+      println("\t-list: if you give this argument the bin names and indices will be listed")
     }
     val dir = new File(args.sliding(2).find(_(0) == "-dir").map(_(1)).getOrElse("."))
     val start = args.sliding(2).find(_(0) == "-start").map(_(1).toInt).getOrElse(0)
@@ -40,8 +41,8 @@ object Fixed2DMovie {
     val height = args.sliding(2).find(_(0) == "-height").map(_(1).toInt).getOrElse(1000)
     val display = args.contains("-display")
     val save = args.sliding(2).find(_(0) == "-save").map(_(1))
-    val colorIndex = args.sliding(2).find(_(0) == "-colorIndex").map(_(1).toInt).getOrElse(2)
-    val gradientString = args.sliding(2).find(_(0) == "gradient").map(_(2)).getOrElse("0.0:000000,1.0:ffffff")
+    val colorIndex = args.sliding(2).find(_(0) == "-colorIndex").map(_(1).toInt).getOrElse(4)
+    val gradientString = args.sliding(2).find(_(0) == "-gradient").map(_(1)).getOrElse("0.0:000000,1.0:ffffff")
     val gradient = ColorGradient(gradientString.split(",").map { vc =>
       val Array(v, c) = vc.split(":")
       (v.toDouble, Integer.parseInt(c, 16) | 0xff000000)
@@ -53,6 +54,8 @@ object Fixed2DMovie {
     }
 
     val (categories, fixedBins) = FixedBinned.read(new File(dir, "FixedBinned.bin").getAbsolutePath())
+    if(args.contains("-list")) categories.zipWithIndex.foreach(println)
+
     class BinsSeries(bin: Int) extends PlotDoubleSeries {
       def apply(i: Int): Double = fixedBins(i / fixedBins(0).length)(i % fixedBins(0).length)(bin)
   
@@ -71,19 +74,19 @@ object Fixed2DMovie {
       def minIndex: Int = 0
       def maxIndex: Int = fixedBins.length * fixedBins(0).length
     }
-    val colorSeries = new PlotIntSeries {
-      def apply(i: Int): Int = fixedBins(i / fixedBins(0).length)(i % fixedBins(0).length)(2).toInt // TODO: Fix colors
+    val xValues = fixed.map { step => new PlotDoubleSeries {
+      def apply(i: Int): Double = (i / fixedBins(0).length)*step/1000.0
   
       def minIndex: Int = 0
       def maxIndex: Int = fixedBins.length * fixedBins(0).length
-    }
-    val fixedSurface = ColoredSurfaceStyle(new BinsSeries(0), new BinsSeries(1),groupSeries, colorSeries)
+    } }.getOrElse(new BinsSeries(0))
+    val fixedSurface = ColoredSurfaceStyle(xValues, new BinsSeries(1), groupSeries, gradient(new BinsSeries(colorIndex)))
     val updater = if (display) Some(SwingRenderer(Plot(Map.empty, Map.empty, Seq.empty), width, height, true)) else None
     if (!cart) {
       for((col, index) <- fixedBins.zipWithIndex) {
         val slicePlot = ScatterStyle(new SliceSeries(colorIndex, col), new SliceSeries(1, col), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1)))))
         val grid = surfaceSliceGrid(fixedSurface, slicePlot, col.head(0), categories(colorIndex), col.maxBy(_(1)).apply(1), col.minBy(_(1)).apply(1))
-        val plot = Plot(Map.empty, Map("Main" -> GridData(grid, Bounds(0, 0, width, height))))
+        val plot = Plot(Map.empty, Map("Main" -> GridData(grid, Bounds(0, 0, 1.0, 1.0))))
         updater.foreach(_.update(plot))
         save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$index.png", width = width, height = height))
       }
@@ -95,18 +98,20 @@ object Fixed2DMovie {
         def maxIndex: Int = cnr.length
       }
       val cartRadRegex = """CartAndRad\.(\d+)\.bin""".r
-      for (fn @ cartRadRegex(num) <- dir.list(); n = num.toInt; if n >= start && n <= end) {
+      val filesAndNums = (for (fn @ cartRadRegex(num) <- dir.list()) yield fn -> num.toInt).sortBy(_._2)
+      for ((fn, n) <- filesAndNums; if n >= start && n <= end) {
+        println(fn)
         val cnr = CartAndRad.read(new File(dir, fn))
         val cnrScatter = ScatterStyle(new CartAndRadSeries(cnr, _.x), new CartAndRadSeries(cnr, _.y), symbolWidth = new CartAndRadSeries(cnr, _.rad * 2), symbolHeight = new CartAndRadSeries(cnr, _.rad *2), 
           xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
         val avX = cnr.foldLeft(0.0)(_ + _.x) / cnr.length
-        val col = fixedBins.minBy(c => (c(0)(0) - avX).abs)
+        val col = fixed.map(step => fixedBins(n/step)).getOrElse(fixedBins.minBy(c => (c(0)(0) - avX).abs))
         val slicePlot = ScatterStyle(new SliceSeries(colorIndex, col), new SliceSeries(1, col), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1)))))
-        val surfaceGrid = surfaceSliceGrid(fixedSurface, slicePlot, col.head(0), categories(colorIndex), col.maxBy(_(1)).apply(1), col.minBy(_(1)).apply(1))
-        val cartGrid = PlotGrid(Seq(Seq(Seq(Plot2D(cnrScatter, "x", "y")))), Map("x" -> NumericAxis("x"), "y" -> NumericAxis("y")), Seq(1), Seq(1))
-        val plot = Plot(Map.empty, Map("binned" -> GridData(surfaceGrid, Bounds(0, 0, width, height / 3)), "cart" -> GridData(cartGrid, Bounds(0, height / 3, width, 2 * height / 3))))
+        val surfaceGrid = surfaceSliceGrid(fixedSurface, slicePlot, fixed.map(step => n / 1000.0).getOrElse(col.head(0)), categories(colorIndex), col.minBy(_(1)).apply(1), col.maxBy(_(1)).apply(1))
+        val cartGrid = PlotGrid(Seq(Seq(Seq(Plot2D(cnrScatter, "x", "y")))), Map("x" -> NumericAxis.defaultHorizontalAxis("x", "Radial", "%1.2e"), "y" -> NumericAxis.defaultVerticalAxis("y", "Azimuthal", "%1.2e")), Seq(1), Seq(1))
+        val plot = Plot(Map.empty, Map("binned" -> GridData(surfaceGrid, Bounds(0, 0, 1.0, 0.33)), "cart" -> GridData(cartGrid, Bounds(0,0.33, 1.0, 0.66))))
         updater.foreach(_.update(plot))
-        save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$num.png", width = width, height = height))
+        save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$n.png", width = width, height = height))
       }
     }
   }
@@ -115,6 +120,7 @@ object Fixed2DMovie {
     val surfaceP2D = Plot2D(fixedSurface, "azimuthal", "radial")
     val sliceP2D = Plot2D(slicePlot, "value", "radial")
     val sliceMarkerP2D = Plot2D(ScatterStyle(Array(x, x), Array(radMin, radMax), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1))))), "azimuthal", "radial")
-    PlotGrid(Seq(Seq(Seq(surfaceP2D, sliceMarkerP2D), Seq(sliceP2D))), Map("azimuthal" -> NumericAxis("azimuthal"), "radial" -> NumericAxis("radial"), "value" -> NumericAxis("value")), Array(6, 1), Array(1))
+    PlotGrid(Seq(Seq(Seq(surfaceP2D, sliceMarkerP2D), Seq(sliceP2D))), Map("azimuthal" -> NumericAxis.defaultHorizontalAxis("azimuthal", "Azimuthal/Time"), "radial" -> NumericAxis.defaultVerticalAxis("radial", "Radial", "%1.1e"), 
+      "value" -> NumericAxis.defaultHorizontalAxis("value", colorName)), Array(5, 1), Array(1))
   }
 }

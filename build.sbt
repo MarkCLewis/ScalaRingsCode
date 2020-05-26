@@ -6,6 +6,10 @@ javaHome := Some(file("/home/mlewis/graalvm-ee-java8-20.0.0"))
 scalacOptions := Seq("-unchecked", "-deprecation")
 javaOptions := Seq("-Xmx32g")
 scalaVersion := "2.12.11"
+assemblyMergeStrategy in assembly := {
+ case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+ case x => MergeStrategy.first
+}
 libraryDependencies += "org.scala-lang.modules" % "scala-swing_2.12" % "2.0.3"
 libraryDependencies += "org.apache.commons" % "commons-math3" % "3.6.1"
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.4"
