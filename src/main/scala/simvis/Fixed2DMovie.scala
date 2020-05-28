@@ -115,8 +115,10 @@ object Fixed2DMovie {
         val cnr = CartAndRad.read(new File(dir, fn))
         val cnrScatter = ScatterStyle(new CartAndRadSeries(cnr, _.x), new CartAndRadSeries(cnr, _.y), symbolWidth = new CartAndRadSeries(cnr, _.rad * 2), symbolHeight = new CartAndRadSeries(cnr, _.rad *2), 
           xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
-        val avX = cnr.foldLeft(0.0)(_ + _.x) / cnr.length
-        val col = fixed.map(step => fixedBins(n/step)).getOrElse(fixedBins.minBy(c => (c(0)(0) - avX).abs))
+        val col = fixed.map(step => fixedBins(n/step)).getOrElse {
+          val avY = cnr.foldLeft(0.0)(_ + _.y) / cnr.length
+          fixedBins.minBy(c => (c(0)(0) - avY).abs)
+        }
         val (startCol, endCol) = boxcar.map { bc => 
           val s = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) - sgn * bc/2)) > 0)
           s -> fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
