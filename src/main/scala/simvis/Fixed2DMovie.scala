@@ -30,6 +30,9 @@ object Fixed2DMovie {
       println("\t-colorIndex #: the index of the color element, default 4")
       println("\t-gradient value:hex,value:hex[,value:hex,...]. default 0.0:000000,1.0:ffffff")
       println("\t-list: if you give this argument the bin names and indices will be listed")
+      println("\t-boxcar #: if specified, displays only a region around the current slide of the given size in radians, doesn't work with fixed")
+      println("\t-azMin #:the minimum azimuthal value to display int eh surface plot")
+      println("\t-azMax #:the maximum azimuthal value to display int eh surface plot")
     }
     val dir = new File(args.sliding(2).find(_(0) == "-dir").map(_(1)).getOrElse("."))
     val start = args.sliding(2).find(_(0) == "-start").map(_(1).toInt).getOrElse(0)
@@ -47,20 +50,25 @@ object Fixed2DMovie {
       val Array(v, c) = vc.split(":")
       (v.toDouble, Integer.parseInt(c, 16) | 0xff000000)
     }:_*)
+    val boxcar = args.sliding(2).find(_(0) == "-boxcar").map(_(1).toDouble)
+    val azMin = args.sliding(2).find(_(0) == "-azMin").map(_(1).toDouble).getOrElse(Double.MinValue)
+    val azMax = args.sliding(2).find(_(0) == "-azMax").map(_(1).toDouble).getOrElse(Double.MaxValue)
 
     if (!display && save.isEmpty) {
       println("You must either specify -display or -save for this program to do something.")
       sys.exit(0)
     }
 
-    val (categories, fixedBins) = FixedBinned.read(new File(dir, "FixedBinned.bin").getAbsolutePath())
+    val (categories, allFixedBins) = FixedBinned.read(new File(dir, "FixedBinned.bin").getAbsolutePath())
+    val sgn = math.signum(allFixedBins(1)(0)(0) - allFixedBins(0)(0)(0))
+    val fixedBins = allFixedBins.filter(col => col(0)(0) >= azMin && col(0)(0) <= azMax)
     if(args.contains("-list")) categories.zipWithIndex.foreach(println)
 
-    class BinsSeries(bin: Int) extends PlotDoubleSeries {
-      def apply(i: Int): Double = fixedBins(i / fixedBins(0).length)(i % fixedBins(0).length)(bin)
+    class BinsSeries(bin: Int, startCol: Int, endCol: Int) extends PlotDoubleSeries {
+      def apply(i: Int): Double = fixedBins(i / fixedBins(0).length + startCol)(i % fb(0).length)(bin)
   
       def minIndex: Int = 0
-      def maxIndex: Int = fixedBins.length * fixedBins(0).length
+      def maxIndex: Int = (endCol-startCol) * fixedBins(0).length
     }
     class SliceSeries(bin: Int, col: Seq[Array[Double]]) extends PlotDoubleSeries {
       def apply(i: Int): Double = col(i)(bin)
@@ -68,22 +76,27 @@ object Fixed2DMovie {
       def minIndex: Int = 0
       def maxIndex: Int = col.length
     }
-    val groupSeries = new PlotIntSeries {
+    class GroupSeries(startCol: Int, endCol: Int) extends  PlotIntSeries {
       def apply(i: Int): Int = i / fixedBins(0).length
   
       def minIndex: Int = 0
-      def maxIndex: Int = fixedBins.length * fixedBins(0).length
+      def maxIndex: Int = (endCol-startCol) * fixedBins(0).length
     }
-    val xValues = fixed.map { step => new PlotDoubleSeries {
-      def apply(i: Int): Double = (i / fixedBins(0).length)*step/1000.0
+    class StepXValues(step: Int, startCol: Int, endCol: Int) extends PlotDoubleSeries {
+      def apply(i: Int): Double = (i / fixedBins(0).length + startCol)*step/1000.0
   
       def minIndex: Int = 0
-      def maxIndex: Int = fixedBins.length * fixedBins(0).length
-    } }.getOrElse(new BinsSeries(0))
-    val fixedSurface = ColoredSurfaceStyle(xValues, new BinsSeries(1), groupSeries, gradient(new BinsSeries(colorIndex)))
+      def maxIndex: Int = (endCol-startCol) * fixedBins(0).length
+    }
     val updater = if (display) Some(SwingRenderer(Plot(Map.empty, Map.empty, Seq.empty), width, height, true)) else None
     if (!cart) {
       for((col, index) <- fixedBins.zipWithIndex) {
+        val (startCol, endCol) = boxcar.map { bc => 
+          val s = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) - sgn * bc/2)) > 0)
+          s -> fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
+        }.getOrElse(0 -> fixedBins.length)
+        val xValues = fixed.map { step => new StepXValues(step, startCol, endCol)}.getOrElse(new BinsSeries(0, startCol, endCol))
+        val fixedSurface = ColoredSurfaceStyle(xValues, new BinsSeries(1, startCol, endCol), new GroupSeries(startCol, endCol), gradient(new BinsSeries(colorIndex, startCol, endCol)))
         val slicePlot = ScatterStyle(new SliceSeries(colorIndex, col), new SliceSeries(1, col), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1)))))
         val grid = surfaceSliceGrid(fixedSurface, slicePlot, col.head(0), categories(colorIndex), col.maxBy(_(1)).apply(1), col.minBy(_(1)).apply(1))
         val plot = Plot(Map.empty, Map("Main" -> GridData(grid, Bounds(0, 0, 1.0, 1.0))))
@@ -106,6 +119,12 @@ object Fixed2DMovie {
           xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
         val avX = cnr.foldLeft(0.0)(_ + _.x) / cnr.length
         val col = fixed.map(step => fixedBins(n/step)).getOrElse(fixedBins.minBy(c => (c(0)(0) - avX).abs))
+        val (startCol, endCol) = boxcar.map { bc => 
+          val s = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) - sgn * bc/2)) > 0)
+          s -> fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
+        }.getOrElse(0 -> fixedBins.length)
+        val xValues = fixed.map { step => new StepXValues(step, startCol, endCol)}.getOrElse(new BinsSeries(0, startCol, endCol))
+        val fixedSurface = ColoredSurfaceStyle(xValues, new BinsSeries(1, startCol, endCol), new GroupSeries(startCol, endCol), gradient(new BinsSeries(colorIndex, startCol, endCol)))
         val slicePlot = ScatterStyle(new SliceSeries(colorIndex, col), new SliceSeries(1, col), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1)))))
         val surfaceGrid = surfaceSliceGrid(fixedSurface, slicePlot, fixed.map(step => n / 1000.0).getOrElse(col.head(0)), categories(colorIndex), col.minBy(_(1)).apply(1), col.maxBy(_(1)).apply(1))
         val cartGrid = PlotGrid(Seq(Seq(Seq(Plot2D(cnrScatter, "x", "y")))), Map("x" -> NumericAxis.defaultHorizontalAxis("x", "Radial", "%1.2e"), "y" -> NumericAxis.defaultVerticalAxis("y", "Azimuthal", "%1.2e")), Seq(1), Seq(1))
