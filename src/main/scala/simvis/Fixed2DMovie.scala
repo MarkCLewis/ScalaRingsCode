@@ -65,7 +65,7 @@ object Fixed2DMovie {
     if(args.contains("-list")) categories.zipWithIndex.foreach(println)
 
     class BinsSeries(bin: Int, startCol: Int, endCol: Int) extends PlotDoubleSeries {
-      def apply(i: Int): Double = fixedBins(i / fixedBins(0).length + startCol)(i % fb(0).length)(bin)
+      def apply(i: Int): Double = fixedBins(i / fixedBins(0).length + startCol)(i % fixedBins(0).length)(bin)
   
       def minIndex: Int = 0
       def maxIndex: Int = (endCol-startCol) * fixedBins(0).length
