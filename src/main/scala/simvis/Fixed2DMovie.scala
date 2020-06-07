@@ -29,7 +29,7 @@ object Fixed2DMovie {
       println("\t-colorIndex #: the index of the color element, default 4")
       println("\t-gradient value:hex,value:hex[,value:hex,...]. default 0.0:000000,1.0:ffffff")
       println("\t-list: if you give this argument the bin names and indices will be listed")
-      println("\t-boxcar #: if specified, displays only a region around the current slide of the given size in radians, doesn't work with fixed")
+      println("\t-boxcar #: if specified, displays only a region around the current slide of the given size in radians")
       println("\t-azMin #:the minimum azimuthal value to display int eh surface plot")
       println("\t-azMax #:the maximum azimuthal value to display int eh surface plot")
     }
@@ -115,13 +115,19 @@ object Fixed2DMovie {
         val cnr = CartAndRad.read(new File(dir, fn))
         val cnrScatter = ScatterStyle(new CartAndRadSeries(cnr, _.x), new CartAndRadSeries(cnr, _.y), symbolWidth = new CartAndRadSeries(cnr, _.rad * 2), symbolHeight = new CartAndRadSeries(cnr, _.rad *2), 
           xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
-        val col = fixed.map(step => fixedBins(n/step)).getOrElse {
+        val (col, colIndex) = fixed.map(step => fixedBins(n/step) -> n/step).getOrElse {
           val avY = cnr.foldLeft(0.0)(_ + _.y) / cnr.length
-          fixedBins.minBy(c => (c(0)(0) - avY).abs)
+          val ind = fixedBins.indices.minBy(i => (fixedBins(i)(0)(0) - avY).abs)
+          fixedBins(ind) -> ind
         }
         val (startCol, endCol) = boxcar.map { bc => 
-          val s = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) - sgn * bc/2)) > 0)
-          s -> fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
+          fixed.map{step => 
+            val colWidth = (bc * 1000 / (2 * math.Pi * step)).toInt
+            ((colIndex - colWidth/2) max 0, (colIndex + colWidth/2) min fixedBins.length-1)
+          }.getOrElse {
+            val s = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) - sgn * bc/2)) > 0)
+            s -> fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
+          }
         }.getOrElse(0 -> fixedBins.length)
         val xValues = fixed.map { step => new StepXValues(step, startCol, endCol)}.getOrElse(new BinsSeries(0, startCol, endCol))
         val fixedSurface = ColoredSurfaceStyle(xValues, new BinsSeries(1, startCol, endCol), new GroupSeries(startCol, endCol), gradient(new BinsSeries(colorIndex, startCol, endCol)))
@@ -130,7 +136,7 @@ object Fixed2DMovie {
         val cartGrid = PlotGrid(Seq(Seq(Seq(Plot2D(cnrScatter, "x", "y")))), Map("x" -> NumericAxis.defaultHorizontalAxis("x", "Radial", "%1.2e"), "y" -> NumericAxis.defaultVerticalAxis("y", "Azimuthal", "%1.2e")), Seq(1), Seq(1))
         val plot = Plot(Map.empty, Map("binned" -> GridData(surfaceGrid, Bounds(0, 0, 1.0, 0.33)), "cart" -> GridData(cartGrid, Bounds(0,0.33, 1.0, 0.66))))
         updater.foreach(_.update(plot))
-        save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$n.png", width = width, height = height))
+        save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + f".$n%06d.png", width = width, height = height))
       }
     }
   }
