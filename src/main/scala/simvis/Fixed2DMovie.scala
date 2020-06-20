@@ -30,8 +30,8 @@ object Fixed2DMovie {
       println("\t-gradient value:hex,value:hex[,value:hex,...]. default 0.0:000000,1.0:ffffff")
       println("\t-list: if you give this argument the bin names and indices will be listed")
       println("\t-boxcar #: if specified, displays only a region around the current slide of the given size in radians")
-      println("\t-azMin #:the minimum azimuthal value to display int eh surface plot")
-      println("\t-azMax #:the maximum azimuthal value to display int eh surface plot")
+      println("\t-azMin #:the minimum azimuthal value to display in the surface plot")
+      println("\t-azMax #:the maximum azimuthal value to display in the surface plot")
     }
     val dir = new File(args.sliding(2).find(_(0) == "-dir").map(_(1)).getOrElse("."))
     val start = args.sliding(2).find(_(0) == "-start").map(_(1).toInt).getOrElse(0)
