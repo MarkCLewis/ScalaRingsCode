@@ -2,7 +2,6 @@ fork := true
 name := "ScalaRingsCode"
 organization := "edu.trinity"
 version := "0.1.0-SNAPSHOT"
-javaHome := Some(file("/home/mlewis/graalvm-ee-java8-20.0.0"))
 scalacOptions := Seq("-unchecked", "-deprecation")
 javaOptions := Seq("-Xmx32g")
 scalaVersion := "2.12.11"
