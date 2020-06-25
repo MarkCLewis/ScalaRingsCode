@@ -1,29 +1,34 @@
 package simprocessing
 
+import scala.collection.mutable
+import scala.math
 
 object MinMaxFinder {
   //this is some test code I lazily put in here for now
   def main(args: Array[String]): Unit = {
-    val x = Seq(1.0,2.0,4.0,6.0)
-    val y = Seq(4.0,8.0,8.0,-1.0)
+    val x = (-0.1 to 10.1 by 0.1).toSeq
+    val y = x.map(z => math.cos(z*math.Pi))
+    //val x = Seq(1.0,2.0,3.0,4.0,5.0)
+    //val y = Seq(1.0,5.0,6.0,5.0,1.0)
+    for (coord <- x) print(coord.toString + ", ")
+    println("\n")
+    for (coord <- y) print(coord.toString + ", ")
+    println("\n")
     val window = 3
     val out = apply(x,y,window)
-    println("number of windows observed:", out.size)
+    println("number of valid extrema: " + out.filter(_!=null).size)
     for(i <- 0 until out.size){
-      println("extrema location:",out(i).location)
+      if(out(i) != null) println("extreme location:",out(i).location)
     }
   }
 
   def apply(x: Seq[Double], y: Seq[Double], window: Int): Seq[ExtremaFit] = {
-    //this should actually be of mutable size so I can grow it according to the number of extrema I keep
     val retArr = Array.ofDim[ExtremaFit](x.size-window+1)
     val sz = 3
-    // f_0 = x^2
-    // f_1 = x
-    // f_2 = 1
-    var f0 = (z:Double) => z*z
-    var f1 = (z:Double) => z
-    var f2 = (z:Double) => 1.0
+    
+    var f0 = (z:Double) => z*z // f_0 = x^2
+    var f1 = (z:Double) => z   // f_1 = x
+    var f2 = (z:Double) => 1.0 // f_2 = 1
     val funcs = Array[(Double)=>Double](f0,f1,f2)
     //     |f_0(x_0) f_1(x_0) f_2(x_0)|
     // D = |f_0(x_1) f_1(x_1) f_2(x_1)|
@@ -31,32 +36,72 @@ object MinMaxFinder {
     //     |f_0(x_n) f_1(x_n) f_2(x_n)|
     // Ax=b, A = D^T*D, b = D^T*y
     // Do running quadratic fit. D^T*D and D^T*y can be calculated in a running way by adding and removing a row from D and y.
-    //I have NOT yet implemented the running method
-    val D = Array.ofDim[Double](window,sz)
+    val D = mutable.ArrayBuffer.fill(window,sz)(0.0)
     val transD = Array.ofDim[Double](sz,window)
+    val yBuff = y.slice(0,window).toBuffer
+
+    for(i <- 0 until window){ //initialize D arraybuffer
+      for(j <- 0 until sz){
+        D(i)(j) = funcs(j)(x(i))
+      }
+    }
+
     for(slider <- 0 until x.size+1-window){
-      val xSlice = x.slice(slider,slider+window)
-      val ySlice = y.slice(slider,slider+window)
-      for(i <- 0 until window){
+      val last = slider+window-1
+      if(slider > 0){ //we need to modify D and yArr
+        yBuff.remove(0)
+        yBuff.append(y(last))
+        D.remove(0)
+        D.append(mutable.ArrayBuffer.fill(sz)(0.0))
         for(j <- 0 until sz){
-          D(i)(j) = funcs(j)(xSlice(i))
+          D(window-1)(j) = funcs(j)(x(last))
+        }
+      }
+      for(i <- 0 until window){ //update the transpose
+        for(j <- 0 until sz){
           transD(j)(i) = D(i)(j)
         }
       }
-      //printMatrix("D",D)
-      //printMatrix("transD",transD)
-      val aMat = matMult(transD,D)
-      val b = matMult(transD,ySlice.toArray)
+      val aMat = matMult(transD,D.map(_.toArray).toArray)
+      val b = matMult(transD,yBuff.toArray)
       //printMatrix("A",aMat)
-      //b.foreach(println(_))
-      retArr(slider) = doFit(aMat,b)
+      //for(elem <- b) print(elem + ", ")
+      //println
+      val ef = doFit(aMat,b)
+      val loc = ef.location
+      // If fit location isn't in the window it is thrown out immediately.
+      if(x(slider) <= loc && x(last) >= loc) {
+        retArr(slider) = ef
+      } else {
+        retArr(slider) = null
+      }
     }
 
-    //HAVE NOT YET DONE THESE 2:
-    // If fit location isn't in the window it is thrown out immediately.
     // For remaining, fits need to find those nearby one another and somehow combine the ones that agree. This could just be a fit with a larger window.
+    //I have done this by summing the a,b,c elements of each set of consecutive ExtremaFit and dividing by the number of consecutive valid fits
+    val retBuff = mutable.ArrayBuffer.empty[ExtremaFit]
     
-    retArr.toSeq
+    var cnt = 0
+    while (cnt < retArr.size){
+      if (retArr(cnt) != null){
+        val ef0 = retArr(cnt)
+        val sumOfFits = Array(ef0.a,ef0.b,ef0.c)
+        var j = cnt+1
+        while (j < retArr.size && retArr(j) != null && (retArr(j).c * ef0.c) > 0){
+          val ef1 = retArr(j)
+          sumOfFits(0) += ef1.a
+          sumOfFits(1) += ef1.b
+          sumOfFits(2) += ef1.c
+          j += 1
+        }
+        val range = j - cnt
+        retBuff += ExtremaFit(sumOfFits(0)/range,sumOfFits(1)/range,sumOfFits(2)/range)
+        cnt = j
+      }
+      else cnt += 1
+    }
+    
+    retBuff.toSeq
   }
 
   // Hard code this to 3x3
@@ -93,7 +138,7 @@ object MinMaxFinder {
     println(matrix.deep.mkString("\n"))
   }
 
-  //multiples matrices (m x n) x (n x k)
+  //multiplies matrices (m x n) x (n x k)
   def matMult(mat1: Array[Array[Double]], mat2: Array[Array[Double]]): Array[Array[Double]] = {
     val m = mat1.size
     val n = mat2.size
@@ -111,7 +156,7 @@ object MinMaxFinder {
     ret
   }
 
-  //multiples a matrix by a vector (m x n) x (n x 1)
+  //multiplies a matrix by a vector (m x n) x (n x 1)
   def matMult(mat1: Array[Array[Double]], vect: Array[Double]): Array[Double] = {
     val m = mat1.size
     val n = vect.size
