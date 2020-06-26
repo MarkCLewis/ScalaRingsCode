@@ -5,22 +5,18 @@ import scala.math
 
 object MinMaxFinder {
   //this is some test code I lazily put in here for now
-  def main(args: Array[String]): Unit = {
-    val x = (-0.1 to 10.1 by 0.1).toSeq
-    val y = x.map(z => math.cos(z*math.Pi))
-    //val x = Seq(1.0,2.0,3.0,4.0,5.0)
-    //val y = Seq(1.0,5.0,6.0,5.0,1.0)
-    for (coord <- x) print(coord.toString + ", ")
-    println("\n")
-    for (coord <- y) print(coord.toString + ", ")
-    println("\n")
-    val window = 3
-    val out = apply(x,y,window)
-    println("number of valid extrema: " + out.filter(_!=null).size)
-    for(i <- 0 until out.size){
-      if(out(i) != null) println("extreme location:",out(i).location)
-    }
-  }
+  // def main(args: Array[String]): Unit = {
+  //   val x = (-0.1 to 10.1 by 0.1).toSeq
+  //   val y = x.map(z => z*z - 2*z + 4)//(z => math.cos(z*math.Pi))
+  //   //val x = Seq(1.0,2.0,3.0,4.0,5.0)
+  //   //val y = Seq(1.0,5.0,6.0,5.0,1.0)
+  //   val window = 3
+  //   val out = apply(x,y,window)
+  //   println("number of valid extrema: " + out.filter(_!=null).size)
+  //   for(i <- 0 until out.size){
+  //     if(out(i) != null) println("extreme location:",out(i).location)
+  //   }
+  // }
 
   def apply(x: Seq[Double], y: Seq[Double], window: Int): Seq[ExtremaFit] = {
     val retArr = Array.ofDim[ExtremaFit](x.size-window+1)
@@ -51,10 +47,10 @@ object MinMaxFinder {
       if(slider > 0){ //we need to modify D and yArr
         yBuff.remove(0)
         yBuff.append(y(last))
-        D.remove(0)
-        D.append(mutable.ArrayBuffer.fill(sz)(0.0))
+        D.remove(0) //remove the top row
+        D.append(mutable.ArrayBuffer.fill(sz)(0.0)) //add a new (empty) bottom row
         for(j <- 0 until sz){
-          D(window-1)(j) = funcs(j)(x(last))
+          D(window-1)(j) = funcs(j)(x(last)) //fill in the new bottom row
         }
       }
       for(i <- 0 until window){ //update the transpose
@@ -64,9 +60,6 @@ object MinMaxFinder {
       }
       val aMat = matMult(transD,D.map(_.toArray).toArray)
       val b = matMult(transD,yBuff.toArray)
-      //printMatrix("A",aMat)
-      //for(elem <- b) print(elem + ", ")
-      //println
       val ef = doFit(aMat,b)
       val loc = ef.location
       // If fit location isn't in the window it is thrown out immediately.
@@ -76,6 +69,8 @@ object MinMaxFinder {
         retArr(slider) = null
       }
     }
+
+    //println(retArr.deep.mkString("\n"))
 
     // For remaining, fits need to find those nearby one another and somehow combine the ones that agree. This could just be a fit with a larger window.
     //I have done this by summing the a,b,c elements of each set of consecutive ExtremaFit and dividing by the number of consecutive valid fits
@@ -87,7 +82,7 @@ object MinMaxFinder {
         val ef0 = retArr(cnt)
         val sumOfFits = Array(ef0.a,ef0.b,ef0.c)
         var j = cnt+1
-        while (j < retArr.size && retArr(j) != null && (retArr(j).c * ef0.c) > 0){
+        while (j < retArr.size && retArr(j) != null && (retArr(j).a * ef0.a) > 0){
           val ef1 = retArr(j)
           sumOfFits(0) += ef1.a
           sumOfFits(1) += ef1.b
