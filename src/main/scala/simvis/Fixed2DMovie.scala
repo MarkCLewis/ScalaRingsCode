@@ -91,7 +91,8 @@ object Fixed2DMovie {
       for((col, index) <- fixedBins.zipWithIndex) {
         val (startCol, endCol) = boxcar.map { bc => 
           val s = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) - sgn * bc/2)) > 0)
-          s -> fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
+          val t = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
+          s -> (if (t >= 0) t else fixedBins.length-1)
         }.getOrElse(0 -> fixedBins.length)
         val xValues = fixed.map { step => new StepXValues(step, startCol, endCol)}.getOrElse(new BinsSeries(0, startCol, endCol))
         val fixedSurface = ColoredSurfaceStyle(xValues, new BinsSeries(1, startCol, endCol), new GroupSeries(startCol, endCol), gradient(new BinsSeries(colorIndex, startCol, endCol)))
@@ -126,7 +127,8 @@ object Fixed2DMovie {
             ((colIndex - colWidth/2) max 0, (colIndex + colWidth/2) min fixedBins.length-1)
           }.getOrElse {
             val s = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) - sgn * bc/2)) > 0)
-            s -> fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
+            val t = fixedBins.indexWhere(c => sgn * (c(0)(0) - (col(0)(0) + sgn * bc/2)) > 0, s + 1)
+            s -> (if (t >= 0) t else fixedBins.length-1)
           }
         }.getOrElse(0 -> fixedBins.length)
         val xValues = fixed.map { step => new StepXValues(step, startCol, endCol)}.getOrElse(new BinsSeries(0, startCol, endCol))
