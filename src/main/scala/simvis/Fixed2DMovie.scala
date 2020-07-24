@@ -30,9 +30,16 @@ object Fixed2DMovie {
       println("\t-gradient value:hex,value:hex[,value:hex,...]. default 0.0:000000,1.0:ffffff")
       println("\t-list: if you give this argument the bin names and indices will be listed")
       println("\t-boxcar #: if specified, displays only a region around the current slide of the given size in radians")
-      println("\t-azMin #:the minimum azimuthal value to display in the surface plot")
-      println("\t-azMax #:the maximum azimuthal value to display in the surface plot")
+      println("\t-azMin #: the minimum azimuthal value to display in the surface plot")
+      println("\t-azMax #: the maximum azimuthal value to display in the surface plot")
+      println("\t-cartXMin #: minimum radial value for the cartesian plot, default to auto")
+      println("\t-cartXMax #: maximum radial value for the cartesian plot, default to auto")
+      println("\t-radialNumFormat format: printf style number format for radial axes, default %1.1f")
+      println("\t-cartAzimuthalNumFormat format: printf style number format for azimuthal axis in CartAndRad plot, default %1.1f")
+      println("\t-azimuthalNumFormat format: printf style number format for azimuthal axis in top plot, default %1.1f")
+      println("\t-valueNumFormat format: printf style number format for slice value axis, default %1.1f")
     }
+    // TODO: Add axis options for number display and range.
     val dir = new File(args.sliding(2).find(_(0) == "-dir").map(_(1)).getOrElse("."))
     val start = args.sliding(2).find(_(0) == "-start").map(_(1).toInt).getOrElse(0)
     val end = args.sliding(2).find(_(0) == "-end").map(_(1).toInt).getOrElse(Int.MaxValue)
@@ -51,6 +58,12 @@ object Fixed2DMovie {
     val boxcar = args.sliding(2).find(_(0) == "-boxcar").map(_(1).toDouble)
     val azMin = args.sliding(2).find(_(0) == "-azMin").map(_(1).toDouble).getOrElse(Double.MinValue)
     val azMax = args.sliding(2).find(_(0) == "-azMax").map(_(1).toDouble).getOrElse(Double.MaxValue)
+    val cartXMin = args.sliding(2).find(_(0) == "-cartXMin").map(_(1).toDouble)
+    val cartXMax = args.sliding(2).find(_(0) == "-cartXMax").map(_(1).toDouble)
+    val radialNumFormat = args.sliding(2).find(_(0) == "-radialNumFormat").map(_(1)).getOrElse("%1.1f")
+    val cartAzimuthalNumFormat = args.sliding(2).find(_(0) == "-cartAzimuthalNumFormat").map(_(1)).getOrElse("%1.1f")
+    val azimuthalNumFormat = args.sliding(2).find(_(0) == "-azimuthalNumFormat").map(_(1)).getOrElse("%1.1f")
+    val valueNumFormat = args.sliding(2).find(_(0) == "-valueNumFormat").map(_(1)).getOrElse("%1.1f")
 
     if (!display && save.isEmpty) {
       println("You must either specify -display or -save for this program to do something.")
@@ -99,6 +112,9 @@ object Fixed2DMovie {
         val slicePlot = ScatterStyle(new SliceSeries(colorIndex, col), new SliceSeries(1, col), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1)))))
         val grid = surfaceSliceGrid(fixedSurface, slicePlot, col.head(0), categories(colorIndex), col.maxBy(_(1)).apply(1), col.minBy(_(1)).apply(1))
         val plot = Plot(Map.empty, Map("Main" -> GridData(grid, Bounds(0, 0, 1.0, 1.0))))
+          .updatedAxis[NumericAxis]("azimuthal", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = azimuthalNumFormat))))
+          .updatedAxis[NumericAxis]("value", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = valueNumFormat))))
+          .updatedAxis[NumericAxis]("radial", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = radialNumFormat))))
         updater.foreach(_.update(plot))
         save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$index.png", width = width, height = height))
       }
@@ -137,6 +153,11 @@ object Fixed2DMovie {
         val surfaceGrid = surfaceSliceGrid(fixedSurface, slicePlot, fixed.map(step => n / 1000.0).getOrElse(col.head(0)), categories(colorIndex), col.minBy(_(1)).apply(1), col.maxBy(_(1)).apply(1))
         val cartGrid = PlotGrid(Seq(Seq(Seq(Plot2D(cnrScatter, "x", "y")))), Map("x" -> NumericAxis.defaultHorizontalAxis("x", "Radial", "%1.2e"), "y" -> NumericAxis.defaultVerticalAxis("y", "Azimuthal", "%1.2e")), Seq(1), Seq(1))
         val plot = Plot(Map.empty, Map("binned" -> GridData(surfaceGrid, Bounds(0, 0, 1.0, 0.33)), "cart" -> GridData(cartGrid, Bounds(0,0.33, 1.0, 0.66))))
+          .updatedAxis[NumericAxis]("azimuthal", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = azimuthalNumFormat))), "binned")
+          .updatedAxis[NumericAxis]("value", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = valueNumFormat))), "binned")
+          .updatedAxis[NumericAxis]("radial", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = radialNumFormat))), "binned")
+          .updatedAxis[NumericAxis]("x", ax => ax.copy(min = cartXMin, max = cartXMax, tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = radialNumFormat))), "cart")
+          .updatedAxis[NumericAxis]("y", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = radialNumFormat))), "aximuthal")
         updater.foreach(_.update(plot))
         save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + f".$n%06d.png", width = width, height = height))
       }
