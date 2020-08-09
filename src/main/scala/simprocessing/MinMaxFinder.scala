@@ -2,21 +2,158 @@ package simprocessing
 
 import scala.collection.mutable
 import scala.math
+import scala.util.Random
 
 object MinMaxFinder {
-  //this is some test code I lazily put in here for now
+  // //this is some test code I lazily put in here for now
   // def main(args: Array[String]): Unit = {
-  //   val x = (-0.1 to 10.1 by 0.1).toSeq
-  //   val y = x.map(z => z*z - 2*z + 4)//(z => math.cos(z*math.Pi))
+  //   val x = (-10.0 to 10.0 by 0.1).toSeq
+  //   val y = x.map(z => 2*z*z*z*z-2*z*z*z-z*z+z)//math.cos(z*math.Pi)-0.5+(3/15)*Random.nextInt(5))
   //   //val x = Seq(1.0,2.0,3.0,4.0,5.0)
   //   //val y = Seq(1.0,5.0,6.0,5.0,1.0)
-  //   val window = 3
-  //   val out = apply(x,y,window)
-  //   println("number of valid extrema: " + out.filter(_!=null).size)
+  //   val window = 5
+  //   val out = useLocalExtrema(x,y,window)
   //   for(i <- 0 until out.size){
-  //     if(out(i) != null) println("extreme location:",out(i).location)
+  //     if(out(i) != null) println("extreme location: "+out(i).location+", "+out(i).value)
   //   }
   // }
+
+
+  //can we speed up by first looking for local extrema i.e. go along, check if each point is a local min or max for the surrounding points +/- window/2
+  //then fit centered at those local extrema only??
+
+  def getLocalExtrema(x: Seq[Double], y: Seq[Double], window: Int): Seq[Point] = {
+    val allExtrema = mutable.ArrayBuffer.empty[Point]
+    val lowB = window/2
+    val upperB = x.size-window/2
+    for(i <- lowB until upperB){
+      val isMax = (y(i) == y.slice(i-lowB,i+lowB).max)
+      val isMin = (y(i) == y.slice(i-lowB,i+lowB).min)
+      //if(ret.size == 0 || (math.abs(y(i)-ret(ret.size-1).y) > minAmp*2 || ))
+      if(isMax) allExtrema += Point(x(i),y(i),i,true)
+      else if(isMin) allExtrema += Point(x(i),y(i),i,false)
+    }
+    //TODO MAKE THESE NOT HARD-CODED
+    val globMaxX = allExtrema.find(_.y == allExtrema.map{e => e.y}.max).get.x
+    println("global Max X: "+globMaxX)
+    val boundedExtrema = allExtrema.filter{e => e.x > -0.0215 && ((e.x >= globMaxX && e.y > 0.06) || (e.x < globMaxX && e.y > 0.08))}//mutable.ArrayBuffer.empty[Point]
+
+    val noDuplicates = mutable.ArrayBuffer.empty[Point]
+    var cnt = 0
+    while(cnt < boundedExtrema.length-1){
+      val orig = cnt
+      while(cnt < boundedExtrema.length-1 && boundedExtrema(cnt).isMax == boundedExtrema(cnt+1).isMax && boundedExtrema(cnt).index + window/2 >= boundedExtrema(cnt+1).index && boundedExtrema(cnt).y == boundedExtrema(cnt+1).y){
+        cnt += 1
+      }
+      if(cnt == orig) noDuplicates += boundedExtrema(cnt)
+      else{
+        println("Using combining code")
+        val numEqual = cnt-orig+1
+        println("num equal = " + numEqual)
+        var xSum = 0.0
+        var ySum = 0.0
+        for(j <- 0 until numEqual){
+          xSum += boundedExtrema(orig+j).x
+          ySum += boundedExtrema(orig+j).y
+        }
+        noDuplicates += Point(xSum/numEqual,ySum/numEqual,-1,boundedExtrema(orig).isMax)
+      }
+      cnt += 1
+    }
+    // var cnt = 0
+    // while(cnt < allExtrema.size-1){
+    //   val orig = cnt
+    //   println(allExtrema(orig).index)
+    //   while(cnt < allExtrema.size-1 && allExtrema(cnt).index + window/2 >= allExtrema(cnt+1).index){
+    //     cnt += 1
+    //   }
+    //   if(cnt == orig) boundedExtrema += allExtrema(orig) 
+    //   cnt += 1
+    // }
+
+    val validExtrema = noDuplicates.toSeq
+    println("There are " + validExtrema.size + " valid local extrema")
+    println("they are: ")
+    validExtrema.foreach{pt => println("x: "+pt.x+" y: "+pt.y+" index: "+pt.index)}
+    validExtrema.toSeq
+  }
+
+  def useLocalExtrema(x: Seq[Double], y: Seq[Double], window: Int): Seq[ExtremaFit] = {
+    println("USING LOCAL EXTREMA")
+    val ret = mutable.ArrayBuffer.empty[ExtremaFit]
+    val validExtrema = getLocalExtrema(x,y,window)
+    val extremaFits = Array.ofDim[ExtremaFit](validExtrema.size)
+
+    val fittingWindows = Array.ofDim[(Int,Int)](validExtrema.size)
+
+    for(i <- 1 until validExtrema.size-1) {
+      val locExt = validExtrema(i)
+      val ampLeft = (validExtrema(i-1).y - locExt.y) / 2
+      val ampRight = (validExtrema(i+1).y - locExt.y) / 2
+      var cntLeft = 1
+      var cntRight = 1
+      if(locExt.isMax){
+        while(y(locExt.index+cntRight) > locExt.y + ampRight){
+          cntRight += 1
+        }
+        while(y(locExt.index-cntLeft) > locExt.y + ampLeft){
+          cntLeft += 1
+        }
+      }
+      else {
+        while(y(locExt.index+cntRight) < locExt.y + ampRight){
+          cntRight += 1
+        }
+        while(y(locExt.index-cntLeft) < locExt.y + ampLeft){
+          cntLeft += 1
+        }
+      }
+      fittingWindows(i) = (cntLeft,cntLeft+cntRight+1)
+      println("Fitting Window: "+(fittingWindows(i)))
+    }
+    fittingWindows(0) = fittingWindows(1)
+    fittingWindows(fittingWindows.size-1) = fittingWindows(fittingWindows.size-2)
+    
+    val sz = 3
+    var f0 = (z:Double) => z*z // f_0 = x^2
+    var f1 = (z:Double) => z   // f_1 = x
+    var f2 = (z:Double) => 1.0 // f_2 = 1
+    val funcs = Array[(Double)=>Double](f0,f1,f2)
+    for(k <- 0 until validExtrema.size){
+      val locExt = validExtrema(k)
+      val (windowLeft, fittingWindow) = fittingWindows(k)
+      println("left: "+windowLeft+" fittingWindow: "+fittingWindow)
+      val D = Array.ofDim[Double](fittingWindow,sz)
+      val transD = Array.ofDim[Double](sz,fittingWindow)
+      val yArr = Array.ofDim[Double](fittingWindow)
+      val offset = locExt.index - windowLeft
+      if(offset + fittingWindow < x.size && offset >= 0){
+        for(i <- 0 until fittingWindow){ //initialize D array
+          for(j <- 0 until sz){
+            D(i)(j) = funcs(j)(x(i+offset))
+            transD(j)(i) = D(i)(j)
+            yArr(i) = y(i+offset)
+          }
+        }
+        printMatrix("D MATRIX", D)
+        printMatrix("TRANSPOSED MATRIX",transD)
+        println("y Vector")
+        yArr.foreach{x => print(x+", ")}
+        println
+        val aMat = matMult(transD,D)
+        val b = matMult(transD,yArr)
+        val ef = doFit(aMat,b)
+        val loc = ef.location
+        // If fit location isn't in the fittingWindow it is thrown out immediately.
+        if(x(offset) <= loc && x(offset+fittingWindow-1) >= loc) {
+          ret += ef
+        }
+      }
+    }
+    ret.toSeq
+  }
+
+  case class Point(x: Double, y:Double, index:Int, isMax:Boolean) {}
 
   def apply(x: Seq[Double], y: Seq[Double], window: Int): Seq[ExtremaFit] = {
     val retArr = Array.ofDim[ExtremaFit](x.size-window+1)
@@ -82,15 +219,18 @@ object MinMaxFinder {
         val ef0 = retArr(cnt)
         val sumOfFits = Array(ef0.a,ef0.b,ef0.c)
         var j = cnt+1
-        while (j < retArr.size && retArr(j) != null && (retArr(j).a * ef0.a) > 0){
-          val ef1 = retArr(j)
-          sumOfFits(0) += ef1.a
-          sumOfFits(1) += ef1.b
-          sumOfFits(2) += ef1.c
+        var numInAvg = 1
+        while (j < cnt+window && j < retArr.size){
+          if (retArr(j) != null && (retArr(j).a * ef0.a) > 0){
+            val ef1 = retArr(j)
+            sumOfFits(0) += ef1.a
+            sumOfFits(1) += ef1.b
+            sumOfFits(2) += ef1.c
+            numInAvg += 1
+          }
           j += 1
         }
-        val range = j - cnt
-        retBuff += ExtremaFit(sumOfFits(0)/range,sumOfFits(1)/range,sumOfFits(2)/range)
+        retBuff += ExtremaFit(sumOfFits(0)/numInAvg,sumOfFits(1)/numInAvg,sumOfFits(2)/numInAvg)
         cnt = j
       }
       else cnt += 1
@@ -170,7 +310,10 @@ object MinMaxFinder {
   case class ExtremaFit(a: Double, b: Double, c: Double) {
     // Solves 2ax+b = 0 to find the location of the extrema
     def location: Double = -0.5 * b / a
-
+    def value: Double = {
+      val loc = location
+      a*loc*loc + b*loc + c
+    }
     def isMax = a < 0.0
   }
 }
