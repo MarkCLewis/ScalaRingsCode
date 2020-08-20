@@ -45,9 +45,10 @@ object FixedBinnedPeakFinder {
 			if(true) categories.zipWithIndex.foreach(println)
 
 			println(stepRange.get)
+			println("FixedBins Length: " + fixedBins.length)
 
-			//TODO stepRange may not work
 			val (start, end) = stepRange.getOrElse((0,fixedBins.length))
+			writeFile("extremeLocations."+start+"-"+(end-1)+".txt", Seq(""+(end-start),"\n"))
 			for ((step, index) <- fixedBins.slice(start,end).zipWithIndex) {
 				val yValues = step.map { col => col(1) }
 				val tauValues = step.map { col => col(4) }
@@ -64,15 +65,18 @@ object FixedBinnedPeakFinder {
 				// }
 				// writeFile("y_tau_index"+slice(0)+"-"+slice(1)+".txt",lines.toSeq)
 
-				val lines = Array.ofDim[String](extrema.length+1)
+				val lines = Array.ofDim[String](extrema.length+2)
 				lines(0) = start+index + "\n"
-				for (i <- 1 until lines.length){
-					lines(i) = ""+locations(i-1)+"\n" 
+				lines(1) = extrema.length + "\n"
+				for (i <- 2 until lines.length){
+					lines(i) = ""+locations(i-2)+"\n" 
 				}
 				writeFile("extremeLocations."+start+"-"+(end-1)+".txt", lines)
 				
 				if(save.nonEmpty || display){
 					val plot = Plot.scatterPlots(Seq((yValues,tauValues,BlackARGB,5),(locations,extremeValues,RedARGB,10)),title=("Step number "+index),xLabel="radial",yLabel="tau")
+					.updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
+					.updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.2f"))))
 					save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$index.png", width = width, height = height))
 					println("Done drawing Step # " + index)
 
@@ -117,7 +121,7 @@ object FixedBinnedPeakFinder {
 				// 	lines(2*i+1) = yValues(i)+"\n"
 				// 	lines(2*i+2) = ""+tauValues(i)+"\n"
 				// }
-				// writeFile("y_tau_index"+slice(0)+"-"+slice(1)+".txt",lines.toSeq)
+				// writeFile("y_tau_index"+slice(0)+"-"+(slice(1)-1)+".txt",lines.toSeq)
 
 				val lines = Array.ofDim[String](extrema.length+1)
 				lines(0) = index + "\n"
