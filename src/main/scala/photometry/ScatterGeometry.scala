@@ -1,8 +1,7 @@
 package photometry
 
-import swiftvis2.raytrace.Geometry
-import swiftvis2.raytrace.Vect
+import swiftvis2.raytrace._
 
 trait ScatterGeometry extends Geometry {
-  def fractionScattered(dir: Vect): Double
+  def fractionScattered(incomingDir: Vect, outgoingDir: Vect, intersectData: IntersectData): Double
 }
