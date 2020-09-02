@@ -11,7 +11,7 @@ class DustGeom extends ScatterGeometry {
   //vector math here? Cross and dot?
   def intersect(r: swiftvis2.raytrace.Ray): Option[swiftvis2.raytrace.IntersectData] = ???
 
-  //intersectData producing outgoingDir? If so why is outgoingDir an arguement and returned?
+  //intersectData producing outgoingDir? If so why is outgoingDir an arguement?
   def fractionScattered(incomingDir: Vect, outgoingDir: Vect, intersectData: IntersectData): Double = {
     1.0
   }
