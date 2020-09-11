@@ -8,6 +8,16 @@ import swiftvis2.plotting.renderer.SwingRenderer
 
 import scala.io.Source
 
+// reads in a text file of following format:
+// # of different slices (plots of tau as function of radius) 1 LINE
+// title or simulation step number
+// number of maxima (N)
+// radial positions of the maxima... (N lines)
+// title or simulation step number
+// number of maxima (N)
+// radial positions of the maxima... (N lines) ......
+
+// then calculates the wavelength between peaks as a function of the radius and plots
 object DensityWavelengthCalculator {
 	def main(args: Array[String]): Unit = {
         if (args.contains("-help") || args.length < 1) {
@@ -23,7 +33,7 @@ object DensityWavelengthCalculator {
             val radialValues = Array.ofDim[Double](maxima.length-1)
             val lambdaValues = Array.ofDim[Double](maxima.length-1)
             for(i <- 0 until maxima.length-1){
-                radialValues(i) = maxima(i)
+                radialValues(i) = (maxima(i+1)+maxima(i))/2
                 lambdaValues(i) = maxima(i+1)-maxima(i)
             }
             val (slope, intercept) = doLinearFit(radialValues.map(r => SIGMA/(R0-r)), lambdaValues)
@@ -36,7 +46,7 @@ object DensityWavelengthCalculator {
             val (width, height) = (1000, 1000)
             val display = true
             val plot = Plot.scatterPlots(Seq((radialValues,lambdaValues,BlackARGB,10),(fitX,fitY,RedARGB,5)),title=("Step number "+step),xLabel="radial",yLabel="wavelength")
-            .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
+            .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.5f"))))
             .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.5f"))))
             val updater = if (display) Some(SwingRenderer(plot, width, height, true)) else None
             println("Done drawing Step # " + step)

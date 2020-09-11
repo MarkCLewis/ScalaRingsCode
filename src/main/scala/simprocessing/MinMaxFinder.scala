@@ -22,7 +22,7 @@ object MinMaxFinder {
   //can we speed up by first looking for local extrema i.e. go along, check if each point is a local min or max for the surrounding points +/- window/2
   //then fit centered at those local extrema only??
 
-  def getLocalExtrema(x: Seq[Double], y: Seq[Double], window: Int): Seq[Point] = {
+  def getLocalExtrema(x: Seq[Double], y: Seq[Double], window: Int, fb: Boolean): Seq[Point] = {
     val allExtrema = mutable.ArrayBuffer.empty[Point]
     val lowB = window/2
     val upperB = x.size-window/2
@@ -33,11 +33,16 @@ object MinMaxFinder {
       if(isMax) allExtrema += Point(x(i),y(i),i,true)
       else if(isMin) allExtrema += Point(x(i),y(i),i,false)
     }
+    //allExtrema.foreach(println)
     //TODO MAKE THESE NOT HARD-CODED
     val globMaxX = allExtrema.find(_.y == allExtrema.map{e => e.y}.max).get.x
     println("global Max X: "+globMaxX)
-    val boundedExtrema = allExtrema.filter{e => e.x > -0.0215 && ((e.x >= globMaxX && e.y > 0.06) || (e.x < globMaxX && e.y > 0.08))}//mutable.ArrayBuffer.empty[Point]
 
+    val boundedExtrema = if(fb) allExtrema.filter{e => e.x > -0.0215 && e.x < -0.02121 && ((e.x >= globMaxX && e.y > 0.06) || (e.x < globMaxX && e.y > 0.08))} 
+                         else allExtrema.filter{e => e.x < 0.0215 && ((e.x <= globMaxX && e.y > 0.016) || (e.x > globMaxX && e.y > 0.016))} 
+
+    
+    //boundedExtrema.foreach(println)
     val noDuplicates = mutable.ArrayBuffer.empty[Point]
     var cnt = 0
     while(cnt < boundedExtrema.length-1){
@@ -60,6 +65,7 @@ object MinMaxFinder {
       }
       cnt += 1
     }
+    if(cnt == boundedExtrema.length-1) noDuplicates += boundedExtrema(cnt)
     // var cnt = 0
     // while(cnt < allExtrema.size-1){
     //   val orig = cnt
@@ -74,14 +80,14 @@ object MinMaxFinder {
     val validExtrema = noDuplicates.toSeq
     println("There are " + validExtrema.size + " valid local extrema")
     println("they are: ")
-    validExtrema.foreach{pt => println("x: "+pt.x+" y: "+pt.y+" index: "+pt.index)}
+    validExtrema.foreach{pt => println("x: "+pt.x+" y: "+pt.y+" index: "+pt.index+" max? "+pt.isMax)}
     validExtrema.toSeq
   }
 
   def useLocalExtrema(x: Seq[Double], y: Seq[Double], window: Int): Seq[ExtremaFit] = {
     println("USING LOCAL EXTREMA")
     val ret = mutable.ArrayBuffer.empty[ExtremaFit]
-    val validExtrema = getLocalExtrema(x,y,window)
+    val validExtrema = getLocalExtrema(x,y,window,true)
     val extremaFits = Array.ofDim[ExtremaFit](validExtrema.size)
 
     val fittingWindows = Array.ofDim[(Int,Int)](validExtrema.size)

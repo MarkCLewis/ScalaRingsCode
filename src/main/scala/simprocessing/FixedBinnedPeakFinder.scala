@@ -25,7 +25,7 @@ object FixedBinnedPeakFinder {
 				println("\t-height #: height of window/image in pixels, defaults to 1000")
 				println("\t-display: tells if the image should be displayed in a window")
 				println("\t-save prefix: tells if images should be saved and gives prefix")
-				println("\t-stepRange #:the range of steps you want to analyze as 2 integers [). Defaults to the whole file")
+				println("\t-stepRange #: the inclusive range of steps you want to analyze as 2 integers. Defaults to the whole file")
 				println("\t-azMin #:the minimum azimuthal value to display in the surface plot")
 				println("\t-azMax #:the maximum azimuthal value to display in the surface plot")
 				sys.exit()
@@ -35,7 +35,7 @@ object FixedBinnedPeakFinder {
 			val height = args.sliding(2).find(_(0) == "-height").map(_(1).toInt).getOrElse(1000)
 			val display = args.contains("-display")
 			val save = args.sliding(2).find(_(0) == "-save").map(_(1))
-			val stepRange = args.sliding(3).find(_(0) == "-stepRange").map(arg => (arg(1).toInt, arg(2).toInt))
+			val stepRange = args.sliding(3).find(_(0) == "-stepRange").map(arg => (arg(1).toInt/100, arg(2).toInt/100))
 			val azMin = args.sliding(2).find(_(0) == "-azMin").map(_(1).toDouble).getOrElse(Double.MinValue)
 			val azMax = args.sliding(2).find(_(0) == "-azMax").map(_(1).toDouble).getOrElse(Double.MaxValue)
 
@@ -48,12 +48,12 @@ object FixedBinnedPeakFinder {
 			println("FixedBins Length: " + fixedBins.length)
 
 			val (start, end) = stepRange.getOrElse((0,fixedBins.length))
-			writeFile("extremeLocations."+start+"-"+(end-1)+".txt", Seq(""+(end-start),"\n"))
-			for ((step, index) <- fixedBins.slice(start,end).zipWithIndex) {
+			writeFile("extremeLocations."+start+"00-"+(end)+"00.txt", Seq(""+(end-start+1),"\n"))
+			for ((step, index) <- fixedBins.slice(start,end+1).zipWithIndex) {
 				val yValues = step.map { col => col(1) }
 				val tauValues = step.map { col => col(4) }
 				val window = 20
-				val extrema = MinMaxFinder.getLocalExtrema(yValues,tauValues,window).filter(_.isMax)
+				val extrema = MinMaxFinder.getLocalExtrema(yValues,tauValues,window,true).filter(_.isMax)
 				val locations = extrema.map { e => e.x}
 				val extremeValues = extrema.map { e => e.y}
 
@@ -64,28 +64,31 @@ object FixedBinnedPeakFinder {
 				// 	lines(2*i+2) = ""+tauValues(i)+"\n"
 				// }
 				// writeFile("y_tau_index"+slice(0)+"-"+slice(1)+".txt",lines.toSeq)
+				val printIndex = 100*(start+index)
 
 				val lines = Array.ofDim[String](extrema.length+2)
-				lines(0) = start+index + "\n"
+				lines(0) = printIndex + "\n"
 				lines(1) = extrema.length + "\n"
 				for (i <- 2 until lines.length){
 					lines(i) = ""+locations(i-2)+"\n" 
 				}
-				writeFile("extremeLocations."+start+"-"+(end-1)+".txt", lines)
-				
+				writeFile("extremeLocations."+start+"00-"+end+"00.txt", lines)
+
 				if(save.nonEmpty || display){
-					val plot = Plot.scatterPlots(Seq((yValues,tauValues,BlackARGB,5),(locations,extremeValues,RedARGB,10)),title=("Step number "+index),xLabel="radial",yLabel="tau")
+					val plot = Plot.scatterPlots(Seq((yValues,tauValues,BlackARGB,5),(locations,extremeValues,RedARGB,10)),title=("Step number "+printIndex),xLabel="radial",yLabel="tau")
 					.updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
 					.updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.2f"))))
-					save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$index.png", width = width, height = height))
-					println("Done drawing Step # " + index)
+					save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$printIndex.png", width = width, height = height))
+					println("Done drawing Step # " + printIndex)
 
 					val updater = if (display) Some(SwingRenderer(plot, width, height, true)) else None
 					//SwingRenderer.saveToImage(plot, prefix + s".$index.png", width = width, height = height)
-					println("Done drawing Step # " + index)
+					println("Done drawing Step # " + printIndex)
 				}
 			}
 		}
+
+		//Testing Code
 		else {
 			val data = readTestingFile("y_tau_index15000-15010.txt")
 			val prefix = "textFileDataTest"
@@ -94,7 +97,7 @@ object FixedBinnedPeakFinder {
 			val height = 1000
 			for(((radValues,tauValues), index) <- data.zipWithIndex){
 				val window = 20
-				val extrema = MinMaxFinder.getLocalExtrema(radValues,tauValues,window).filter(_.isMax)
+				val extrema = MinMaxFinder.getLocalExtrema(radValues,tauValues,window,true).filter(_.isMax)
 				val locations = extrema.map { e => e.x}
 				val extremeValues = extrema.map { e => e.y}
 
