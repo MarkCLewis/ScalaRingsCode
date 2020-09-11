@@ -8,10 +8,18 @@ import util.Particle
 import java.io.BufferedInputStream
 import LittleEndianReads._
 import java.io.InputStream
+import scalafx.scene.input.KeyCode.P
+import java.io.DataOutputStream
+import java.io.OutputStream
+import java.io.FileOutputStream
 
 object CartAndRad {
   def read(file:File, ymin:Double = Double.MinValue, ymax:Double = Double.MaxValue):IndexedSeq[Particle] = {
-    readStream(new FileInputStream(file))
+    readStream(new FileInputStream(file), ymin, ymax)
+  }
+
+  def write(file: File, ps: IndexedSeq[Particle]): Unit = {
+    writeStream(new FileOutputStream(file), ps)
   }
 
   def readStream(is: InputStream, ymin:Double = Double.MinValue, ymax:Double = Double.MaxValue):IndexedSeq[Particle] = {
@@ -30,10 +38,27 @@ object CartAndRad {
     dis.close
     parts
   }
+
+  def writeStream(os: OutputStream, ps: IndexedSeq[Particle]): Unit = {
+    val dos = new DataOutputStream(os)
+    LittleEndianWrites.writeInt(dos, ps.length)
+    for (p <- ps) writeCart(dos,p)
+    for (p <- ps) LittleEndianWrites.writeDouble(dos, p.rad)
+    dos.close
+  }
   
   
   private def readCart(dis:DataInputStream, i:Double):Particle = {
     Particle(readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis),readDouble(dis), i)
+  }
+
+  private def writeCart(dos: DataOutputStream, p: Particle): Unit = {
+    LittleEndianWrites.writeDouble(dos, p.x)
+    LittleEndianWrites.writeDouble(dos, p.y)
+    LittleEndianWrites.writeDouble(dos, p.z)
+    LittleEndianWrites.writeDouble(dos, p.vx)
+    LittleEndianWrites.writeDouble(dos, p.vy)
+    LittleEndianWrites.writeDouble(dos, p.vz)
   }
 
   val FileRegex = """.*CartAndRad.(\d+).bin""".r

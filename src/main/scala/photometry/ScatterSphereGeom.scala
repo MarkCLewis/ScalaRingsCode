@@ -15,7 +15,7 @@ class ScatterSphereGeom(
       outgoingDir: Vect,
       intersectData: IntersectData
   ): Double = {
-    -incomingDir.normalize.dot(intersectData.norm)
+    outgoingDir.normalize.dot(intersectData.norm)
   }
 }
 
