@@ -13,14 +13,27 @@ import scala.swing.{MainFrame, Label, Swing, Alignment}
 object Render {
   def main(args: Array[String]): Unit = {
     RTColor(255, 255, 255)
-    val geom = new ScatterSphereGeom(
+    val geom = new ListScene(
+      new ScatterSphereGeom(
       Point(0, 0, 0),
-      10,
+      5,
       Point => RTColor(1, 1, 1, 1),
       Point => 0.0
-    )
+    ),
+      new ScatterSphereGeom(
+      Point(10, 0, 0),
+      5,
+      Point => RTColor(1, 1, 1, 1),
+      Point => 0.0
+    ),
+     new ScatterSphereGeom(
+      Point(-10, 0, 0),
+      5,
+      Point => RTColor(1, 1, 1, 1),
+      Point => 0.0
+    ))
     val light = PointLight(RTColor(1, 1, 1), Point(0, 0, 200), Set.empty)
-    val viewLoc = Point(0, -20, 0)
+    val viewLoc = Point(0, -40, 0)
     val forward = Vect(0, 1, 0)
     val up = Vect(0, 0, 1)
     val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
@@ -41,6 +54,7 @@ object Render {
       forward: Vect, // Assume unit vector
       up: Vect, // Assume unit vector
       image: RTImage,
+      //pixels: Array[Array[RTColor]],
       numPhotons: Long
   ): Unit = {
     val interRect = geom.boundingBox
@@ -48,7 +62,7 @@ object Render {
       (interRect.min.x, interRect.max.x, interRect.min.y, interRect.max.y)
     val right = forward.cross(up)
     val pixels = Array.fill(image.width, image.height)(RTColor.Black)
-    
+
     for (_ <- 0L until numPhotons) {
       val ray = Ray(
         light.point,
