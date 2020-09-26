@@ -2,6 +2,10 @@ package photometry
 
 import swiftvis2.raytrace._
 import java.awt.image.BufferedImage
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 //import scala.swing._
 import java.io.File
 //import ExtendedSlidingBoxSims.SimSpec
@@ -18,11 +22,14 @@ object Render {
     val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/Moonlet4/CartAndRad." + step.toString + ".bin")
 		val geom = new KDTreeGeometry[BoundingSphere](data.CartAndRad.readStream(carURL.openStream).map(p => new ScatterSphereGeom(Point(p.x, p.y, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)))
     val lights:List[PointLight] = List(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), PointLight(new RTColor(0.5, 0.4, 0.1, 1), Point(-1e-1, 0, 1e-2)))
-    val viewLoc = Point(0, 0, 1e-5)
+    val viewLoc = Point(0, 0, 2e-5)
     val forward = Vect(0, 0, 1)
     val up = Vect(0, 1, 0)
     val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
     val img = new rendersim.RTBufferedImage(bimg)
+    val threads: Int = 4
+
+
 
     val frame = new MainFrame {
       title = "Dust Frame"
@@ -31,15 +38,19 @@ object Render {
     frame.visible = true
 
     var totalPixels: Array[Array[RTColor]] = null
-    for (i <- 1 to 100) {
-      println(i)
-      for (j <- lights) {
-        val pixels = render(geom, j, viewLoc, forward, up, img, 100000)
-        if (totalPixels == null) totalPixels = pixels else totalPixels = addPixels(totalPixels, pixels)
-        writeToImage(totalPixels, img)
-        frame.repaint()
+
+    val futures = for(c <- 1 to threads) yield Future{
+      for (i <- 1 to 100) {
+        println(i)
+        for (j <- lights) {
+          val pixels = render(geom, j, viewLoc, forward, up, img, 100000)
+          if (totalPixels == null) totalPixels = pixels else totalPixels = addPixels(totalPixels, pixels)
+          writeToImage(totalPixels, img)
+          frame.repaint()
+        }
       }
     }
+    futures.map(Await.result(_, Duration.Inf))
   }
 
   def render(
