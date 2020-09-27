@@ -33,22 +33,20 @@ object Render {
     }
     frame.visible = true
 
-    var totalPixels: Array[Array[RTColor]] = null
-
-    def parallelRender(pass: Int): Unit = {
+    def parallelRender(startPixels: Array[Array[RTColor]], pass: Int): Future[Array[Array[RTColor]]] = {
       println(pass)
-      val futures = for(c <- 1 to threads) yield Future {
-        for (light <- lights) {
-          val pixels = render(geom, light, viewLoc, forward, up, img)
-          if (totalPixels == null) totalPixels = pixels else totalPixels = addPixels(totalPixels, pixels)
-          writeToImage(totalPixels, img)
-          frame.repaint()
-        }
+      val futures = for(c <- 1 to threads; light <- lights) yield Future {
+        render(geom, light, viewLoc, forward, up, img)
       }
-      Future.sequence(futures).map(_ => parallelRender(pass + 1))
+      Future.sequence(futures).map { pixelFrames =>
+        val endPixels = pixelFrames.foldLeft(startPixels)(addPixels)
+        writeToImage(endPixels, img)
+        frame.repaint()
+        endPixels
+      }.flatMap(ep => parallelRender(ep, pass + 1))
     }
 
-    parallelRender(0)
+    parallelRender(Array.fill(img.width, img.height)(RTColor.Black), 0)
   }
 
   def render(
