@@ -13,23 +13,19 @@ import javax.imageio._
 import scala.swing.{MainFrame, Label, Swing, Alignment}
 import java.net.URL
 
-
 // Draw stuff using photometry
 object Render {
   def main(args: Array[String]): Unit = {
-    RTColor(255, 255, 255)
     val step = 5000
     val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/Moonlet4/CartAndRad." + step.toString + ".bin")
 		val geom = new KDTreeGeometry[BoundingSphere](data.CartAndRad.readStream(carURL.openStream).map(p => new ScatterSphereGeom(Point(p.x, p.y, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)))
-    val lights:List[PointLight] = List(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), PointLight(new RTColor(0.5, 0.4, 0.1, 1), Point(-1e-1, 0, 1e-2)))
+    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 10000))
     val viewLoc = Point(0, 0, 2e-5)
     val forward = Vect(0, 0, 1)
     val up = Vect(0, 1, 0)
     val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
     val img = new rendersim.RTBufferedImage(bimg)
-    val threads: Int = 4
-
-
+    val threads: Int = 24
 
     val frame = new MainFrame {
       title = "Dust Frame"
@@ -39,29 +35,29 @@ object Render {
 
     var totalPixels: Array[Array[RTColor]] = null
 
-    val futures = for(c <- 1 to threads) yield Future{
-      for (i <- 1 to 100) {
-        println(i)
-        for (j <- lights) {
-          val pixels = render(geom, j, viewLoc, forward, up, img, 100000)
+    def parallelRender(pass: Int): Unit = {
+      println(pass)
+      val futures = for(c <- 1 to threads) yield Future {
+        for (light <- lights) {
+          val pixels = render(geom, light, viewLoc, forward, up, img)
           if (totalPixels == null) totalPixels = pixels else totalPixels = addPixels(totalPixels, pixels)
           writeToImage(totalPixels, img)
           frame.repaint()
         }
       }
+      Future.sequence(futures).map(_ => parallelRender(pass + 1))
     }
-    futures.map(Await.result(_, Duration.Inf))
+
+    parallelRender(0)
   }
 
   def render(
       geom: Geometry,
-      light: PointLight,
+      source: PhotonSource,
       viewLoc: Point,
       forward: Vect, // Assume unit vector
       up: Vect, // Assume unit vector
-      image: RTImage,
-      //pixels: Array[Array[RTColor]],
-      numPhotons: Long
+      image: RTImage
   ): Array[Array[RTColor]] = {
     val interRect = geom.boundingBox
     val (xmin, xmax, ymin, ymax) =
@@ -69,9 +65,9 @@ object Render {
     val right = forward.cross(up)
     val pixels = Array.fill(image.width, image.height)(RTColor.Black)
 
-    for (_ <- 0L until numPhotons) {
+    for (_ <- 0L until source.numPhotons) {
       val ray = Ray(
-        light.point,
+        source.light.point,
         Point(
           xmin + math.random() * (xmax - xmin),
           ymin + math.random() * (ymax - ymin),
@@ -89,7 +85,7 @@ object Render {
             val px = ((inRay.dot(right)/fracForward / 0.707 + 1.0) * image.width / 2).toInt
             val py = ((inRay.dot(up)/fracForward / 0.707 + 1.0) * image.height / 2).toInt
             if (px >= 0 && px < image.width && py >= 0 && py < image.height) {
-              pixels(px)(py) += light.col * scatter
+              pixels(px)(py) += source.light.col * scatter
             }
           }
         }

@@ -2,6 +2,4 @@ package photometry
 import swiftvis2.raytrace._
 
 
-class PhotonSource (light: PointLight, numPhotons: Long) {
-
-}
+case class PhotonSource (light: PointLight, numPhotons: Long)
