@@ -33,7 +33,7 @@ object DensityWavelengthCalculator {
             val radialValues = Array.ofDim[Double](maxima.length-1)
             val lambdaValues = Array.ofDim[Double](maxima.length-1)
             for(i <- 0 until maxima.length-1){
-                radialValues(i) = (maxima(i+1)+maxima(i))/2
+                radialValues(i) = (maxima(i+1)+maxima(i))/2 - R0
                 lambdaValues(i) = maxima(i+1)-maxima(i)
             }
             val (slope, intercept) = doLinearFit(radialValues.map(r => SIGMA/(R0-r)), lambdaValues)
