@@ -50,7 +50,7 @@ object FixedBinnedPeakFinder {
 			val (start, end) = stepRange.getOrElse((0,fixedBins.length))
 			writeFile("extremeLocations."+start+"00-"+(end)+"00.txt", Seq(""+(end-start+1),"\n"))
 			for ((step, index) <- fixedBins.slice(start,end+1).zipWithIndex) {
-				val yValues = step.map { col => col(1) }
+				val yValues = step.map { col => col(1) } //these are really the radial coordinates
 				val tauValues = step.map { col => col(4) }
 				val window = 20
 				val extrema = MinMaxFinder.getLocalExtrema(yValues,tauValues,window,true).filter(_.isMax)
