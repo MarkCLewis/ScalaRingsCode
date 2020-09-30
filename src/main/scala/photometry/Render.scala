@@ -16,10 +16,11 @@ import java.net.URL
 // Draw stuff using photometry
 object Render {
   def main(args: Array[String]): Unit = {
-    val step = 5000
-    val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/Moonlet4/CartAndRad." + step.toString + ".bin")
-		val geom = new KDTreeGeometry[BoundingSphere](data.CartAndRad.readStream(carURL.openStream).map(p => new ScatterSphereGeom(Point(p.x, p.y, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)))
-    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 1000000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 200000))
+    // val step = 5000
+    // val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/Moonlet4/CartAndRad." + step.toString + ".bin")
+    // val geom = new KDTreeGeometry[BoundingSphere](data.CartAndRad.readStream(carURL.openStream).map(p => new ScatterSphereGeom(Point(p.x, p.y, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)))
+    val geom = new DustGeom(Point(0,0,0), Vect(1e-5, 0, 0), Vect(0, 2e-5, 0), Vect(0, 0, 1e-7), 0.5)
+    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 20000))
     val viewLoc = Point(0, 0, 2e-5)
     val forward = Vect(0, 0, 1)
     val up = Vect(0, 1, 0)
