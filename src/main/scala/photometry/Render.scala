@@ -26,7 +26,7 @@ object Render {
     val up = Vect(0, 1, 0)
     val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
     val img = new rendersim.RTBufferedImage(bimg)
-    val threads: Int = 24
+    val threads: Int = 4
 
     val frame = new MainFrame {
       title = "Dust Frame"
