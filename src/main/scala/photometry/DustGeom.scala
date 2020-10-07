@@ -35,29 +35,34 @@ case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, densit
     val c = (a1 dot r0) * (a1 dot r0) / (r1 * r1) + (a2 dot r0) * (a2 dot r0) / (r2 * r2) + (a3 dot r0) * (a3 dot r0) / (r3 * r3) - 1
     val root = b * b - 4 * a * c
     
-    val penetration = math.random() // penetration is a fraction of the way between s1 and t2
-
-    if (root < 0 || penetration > density) None
+    
+    if (root < 0) None
     else {
-
-      val pointInCloud  = (penetration - density)/(1 - penetration)
-
-      val t1 = (-b - Math.sqrt(root)) / (2 * a)
-      val t2 = (-b + Math.sqrt(root)) / (2 * a)
-      val tmin = t1 min t2
-      val tmax = t1 max t2
+      val tmin = (-b - Math.sqrt(root)) / (2 * a)
+      val tmax = (-b + Math.sqrt(root)) / (2 * a)
       
-      if (t1 < 0 && t2 < 0) None
+      if (tmax < 0) None
       else {      
-        val t3 = tmax - tmin
-        val t = (t3 * pointInCloud) + tmin
+        val penetration = math.random() // penetration is a fraction of the way between s1 and t2
+        val tsep = tmax - tmin
+        val crossLength = r.dir.magnitude * tsep
+        val crossDepth = crossLength * density
+        val intersectProb = 1.0 - math.exp(-crossDepth)
+        
+        if (penetration > intersectProb) None 
+        else {
+          val pointInCloud  = (penetration - intersectProb)/(1 - intersectProb)
+          //println(crossLength, crossDepth, intersectProb, penetration, pointInCloud)
+          val t = (tsep * pointInCloud) + tmin
 
-        val color = RTColor.White
-        val reflect = 0.0
-        val pnt = r point t // somewhere between t1 and s2, t1 and s2 are the edges of the ellipsoid?? / when the ray passes through the ellipsoid?
-        val separation = (pnt - center).normalize
-        val normal = a1 * (a1 dot separation) * mag / r1 + a2 * (a2 dot separation) * mag / r2 + a3 * (a3 dot separation) * mag / r3
-        Some(new IntersectData(t, pnt, normal, color, reflect, this))
+          val color = RTColor.White
+          val reflect = 0.0
+          val pnt = r point t // somewhere between t1 and s2, t1 and s2 are the edges of the ellipsoid?? / when the ray passes through the ellipsoid?
+          // val separation = (pnt - center).normalize
+          val normal = Vect(math.random(), math.random(), math.random()).normalize
+          // val normal = a1 * (a1 dot separation) * mag / r1 + a2 * (a2 dot separation) * mag / r2 + a3 * (a3 dot separation) * mag / r3
+          Some(new IntersectData(t, pnt, normal, color, reflect, this))
+        }
       }
     }
   }
