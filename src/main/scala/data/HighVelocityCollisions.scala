@@ -6,13 +6,18 @@ import java.io.FileInputStream
 import java.io.BufferedInputStream
 import java.io.DataInputStream
 import data.LittleEndianReads._
+import java.io.InputStream
 
 case class CollisionData(vel: Double, p1: Particle, p2: Particle)
 case class StepCollData(step: Int, colls: IndexedSeq[CollisionData])
 
 object HighVelocityCollisions {
   def read(file: File, startStep: Int = 0, endStep: Int = Int.MaxValue): IndexedSeq[StepCollData] = {
-    val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))
+    readStream(new FileInputStream(file), startStep, endStep)
+  }
+
+  def readStream(is: InputStream, startStep: Int = 0, endStep: Int = Int.MaxValue): IndexedSeq[StepCollData] = {
+    val dis = new DataInputStream(new BufferedInputStream(is))
     var steps = List.empty[StepCollData]
     var step = 0
     var buffer = new Array[Byte](0)
