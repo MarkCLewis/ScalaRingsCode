@@ -27,10 +27,11 @@ object Render {
     println(impacts.last)
     println(impacts.foldLeft(0)(_ + _.colls.length))
     val impactGeom = new KDTreeGeometry[BoundingSphere](impacts.flatMap(scd => scd.colls
-      .map(coll => new ScatterSphereGeom(Point(coll.p1.x, coll.p1.y, coll.p1.z), coll.p1.rad*100 min 1e-7, _ => new RTColor(1, 0, 0, 1), _ => 0.0))))
+      .map(coll => new ScatterSphereGeom(Point(coll.p1.x, coll.p1.y, coll.p1.z), coll.p1.rad*100 min 1e-7, 
+      _ => new RTColor(coll.vel/5e-6 min 1.0, 0, 1.0 - coll.vel/5e-6 min 1.0, 1), _ => 0.0))))
     val dustGeom = new DustGeom(Point(0,0,0), Vect(5e-6, 0, 0), Vect(0, 2e-5, 0), Vect(0, 0, 1e-7), 0.5/1e-6)
     val geom = new ListScene(ringGeom, dustGeom, impactGeom)
-    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 20000))
+    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 1.0), Set.empty), 100000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 20000))
     val viewLoc = Point(0, 0, 2e-5)
     val forward = Vect(0, 0, 1)
     val up = Vect(0, 1, 0)
