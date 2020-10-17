@@ -46,7 +46,7 @@ object CartPlotFiltered {
     for(s <- sources) {
       val FileRegex(fnum) = s
       val parts = ptrans.foldLeft(CartAndRad.read(new java.io.File(s)))((ps, t) => t(ps))
-      val rads = parts.map(_.rad)
+      val rads = parts.map(_.rad*2)
       val plot = Plot.simple(ScatterStyle(parts.map(_.x), parts.map(_.y), symbolWidth = rads, symbolHeight = rads, xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled), xLabel = "Radial", yLabel = "Azimuthal").
         updatedAxis[NumericAxis]("x", na => na.copy(min = xaxisMin, max = xaxisMax, tickLabelInfo = na.tickLabelInfo.map(_.copy(numberFormat = labelFormat)))).
         updatedAxis[NumericAxis]("y", na => na.copy(min = yaxisMin, max = yaxisMax, tickLabelInfo = na.tickLabelInfo.map(_.copy(numberFormat = labelFormat))))
