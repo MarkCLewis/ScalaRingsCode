@@ -31,7 +31,7 @@ object Render {
       _ => new RTColor(coll.vel/5e-6 min 1.0, 0, 1.0 - coll.vel/5e-6 min 1.0, 1), _ => 0.0))))
     val dustGeom = new DustGeom(Point(0,0,0), Vect(5e-6, 0, 0), Vect(0, 2e-5, 0), Vect(0, 0, 1e-7), 0.5/1e-6)
     val geom = new ListScene(ringGeom, dustGeom, impactGeom)
-    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 1.0), Set.empty), 100000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 20000))
+    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 20000))
     val viewLoc = Point(0, 0, 2e-5)
     val forward = Vect(0, 0, 1)
     val up = Vect(0, 1, 0)

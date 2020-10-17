@@ -50,7 +50,7 @@ object AutomateOccultations {
       val radMax = maxStr.toDouble
       val rho = rhoStr.toDouble
       val sigma = sigmaStr.toDouble
-      num.filter(_ >= 10000).map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma, rest))
+      num.map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma, rest))
     }).flatten
 
     // 1000 measurements per second.
