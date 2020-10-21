@@ -18,6 +18,7 @@ import data.HighVelocityCollisions
 object Render {
   def main(args: Array[String]): Unit = {
     val step = 10000
+
     val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/CartAndRad." + step.toString + ".bin")
 //    val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/MesoScaleFeatures/AGUPosterRun/a=123220:q=2.8:min=1.5e-9:max=1.5e-8:rho=0.4:sigma=45.5/CartAndRad.4420.bin")
     val impactURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/HighVelColls.bin")
