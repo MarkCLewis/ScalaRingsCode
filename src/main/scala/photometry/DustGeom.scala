@@ -2,9 +2,24 @@ package photometry
 
 import swiftvis2.raytrace._
 
-case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, density: Double) 
-    extends GeomEllipsoid(center, axis1, axis2, axis3, _ => RTColor.White, _ => 0.0) 
-    with ScatterGeometry {
+case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, density: Double,color: (Point) => RTColor) 
+    extends ScatterGeometry {
+
+  val r1 = axis1.magnitude
+  val r2 = axis2.magnitude
+  val r3 = axis3.magnitude
+  val a1 = axis1.normalize
+  val a2 = axis2.normalize
+  val a3 = axis3.normalize
+  val mag = r1 * r1 + r2 * r2 + r3 * r3
+
+  override val boundingSphere: Sphere = new BoundingSphere(center, r1 max r2 max r3)
+
+  // This is overly conservative and assumes a sphere with a radius of the largest axis
+  override def boundingBox: Box = {
+    val radius = r1 max r2 max r3
+    BoundingBox(center - radius, center + radius)
+  }
  
   //vector math here? Cross and dot?
   override def intersect(r: swiftvis2.raytrace.Ray): Option[swiftvis2.raytrace.IntersectData] = {
@@ -21,13 +36,7 @@ case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, densit
     //     Some(IntersectData(time, point, norm, color, reflect, geom))
     //   }
     // }
-    val r1 = axis1.magnitude
-    val r2 = axis2.magnitude
-    val r3 = axis3.magnitude
-    val a1 = axis1.normalize
-    val a2 = axis2.normalize
-    val a3 = axis3.normalize
-    val mag = r1 * r1 + r2 * r2 + r3 * r3    
+        
     val ray = r.dir
     val r0 = (r.p0 - center)
     val a = (a1 dot ray) * (a1 dot ray) / (r1 * r1) + (a2 dot ray) * (a2 dot ray) / (r2 * r2) + (a3 dot ray) * (a3 dot ray) / (r3 * r3)
@@ -55,13 +64,12 @@ case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, densit
           //println(crossLength, crossDepth, intersectProb, penetration, pointInCloud)
           val t = (tsep * pointInCloud) + tmin
 
-          val color = RTColor.White
           val reflect = 0.0
           val pnt = r point t // somewhere between t1 and s2, t1 and s2 are the edges of the ellipsoid?? / when the ray passes through the ellipsoid?
           // val separation = (pnt - center).normalize
           val normal = Vect(math.random(), math.random(), math.random()).normalize
           // val normal = a1 * (a1 dot separation) * mag / r1 + a2 * (a2 dot separation) * mag / r2 + a3 * (a3 dot separation) * mag / r3
-          Some(new IntersectData(t, pnt, normal, color, reflect, this))
+          Some(new IntersectData(t, pnt, normal, color(pnt), reflect, this))
         }
       }
     }
