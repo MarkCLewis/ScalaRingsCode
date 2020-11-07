@@ -16,8 +16,8 @@ object MeasurementDetails {
   val Regex = """MeasurementDetails\((.+),(.+),([\d.]+),([\d.]+),([\d.]+),([\d.]+),([\d.]+),([\d.]+),([\d.]+)\)""".r
 
   def apply(line: String): Option[MeasurementDetails] = line match {
-    case Regex(star, date, b, phMin, phiMax, rmin, rmax, duration, i0) =>
-      Some(MeasurementDetails(star, date, b.toDouble, phMin.toDouble, phiMax.toDouble, rmin.toDouble, rmax.toDouble, duration.toDouble, i0.toDouble))
+    case Regex(star, date, b, phiMin, phiMax, rmin, rmax, duration, i0) =>
+      Some(MeasurementDetails(star, date, b.toDouble, phiMin.toDouble, phiMax.toDouble, rmin.toDouble, rmax.toDouble, duration.toDouble, i0.toDouble))
     case _ => None
   }
 }

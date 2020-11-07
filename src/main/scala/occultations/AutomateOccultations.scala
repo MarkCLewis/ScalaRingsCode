@@ -50,7 +50,7 @@ object AutomateOccultations {
       val radMax = maxStr.toDouble
       val rho = rhoStr.toDouble
       val sigma = sigmaStr.toDouble
-      num.filter(_ >= 10000).map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma, rest))
+      num.map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma, rest))
     }).flatten
 
     // 1000 measurements per second.
@@ -98,7 +98,7 @@ object AutomateOccultations {
         pw.println(star)
         pw.println(sim)
         pw.println("Used orbits "+(step+1000)/1000.0+" to "+maxStep/1000.0)
-        pw.println("Index\tPhotons\tTrans\tFraction")
+        pw.println("Index\tPhotons\tTrans\tFraction\tstart-x\tstart-y\tend-x\tend-y")
         for ((scan, i) <- scans.zipWithIndex) {
           pw.println(s"$i\t${scan.photons.length}\t${scan.photons.count(!_.hit)}\t${scan.intensity}\t${scan.sx}\t${scan.sy}\t${scan.ex}\t${scan.ey}")
         }
