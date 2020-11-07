@@ -44,24 +44,38 @@ object CompareBCs {
 
         //Check how far the simulation is azimuthally. Can extract the data for binning
         //SOA and global start at same place, bottom of cell hits the moon after about 100 steps, PWPS hits moon after 3
-        val lastGlobStep = globdir.listFiles.filter(file => file.isFile && file.getName.contains("CartAndRad")).map(file => file.getName.stripPrefix("CartAndRad.").stripSuffix(".bin").trim.toInt).max
-        val soaStep = lastGlobStep + 100
+        val lastSoaStep = soadir.listFiles.filter(file => file.isFile && file.getName.contains("CartAndRad"))
+             .map(file => file.getName.stripPrefix("CartAndRad.").stripSuffix(".bin").trim.toInt).max -1100
+        val lastGlobStep = Seq(globdir.listFiles.filter(file => file.isFile && file.getName.contains("CartAndRad"))
+            .map(file => file.getName.stripPrefix("CartAndRad.").stripSuffix(".bin").trim.toInt).max, lastSoaStep).min
+        //val soaStep = lastGlobStep + 100
         //val globParticles = CartAndRad.read(new File(globdir, "CartAndRad."+lastGlobStep+".bin"))
         println("last step in global: ", lastGlobStep)
+        val doGlobal = true
+        val gradCut = 1.0/5
 
     
         val (start, end) = (lastGlobStep, lastGlobStep)
         for(step <- start to end by 100){
             //First make soa plot
             // 
-            val soaParticles = CartAndRad.read(new File(soadir, "CartAndRad."+step+".bin"))
+
+            //need best way to do this with combining the 3 steps together
+            val soaParticles = CartAndRad.read(new File(soadir, "CartAndRad."+(step+100)+".bin"))
             val soaMinY = soaParticles.map(_.y).min
             val soaMaxY = soaParticles.map(_.y).max
             println("SOA min azimuth: ", soaMinY)
-            val (soaBinnedX, soaBinnedY, soaTau) = getTau(soaParticles,soaBinsX,soaBinsY)
-            val soaModY = soaBinnedY.map(y => (-y % 6.283185 - 3.141592))
+            val soaParticlesPrev = CartAndRad.read(new File(soadir, "CartAndRad."+(step-900)+".bin"))
+            //val soaPrevMinY = soaParticlesPrev.map(_.y).min
+            val soaParticlesNext = CartAndRad.read(new File(soadir, "CartAndRad."+(step+1100)+".bin"))
+                .filter(p => p.y < soaMinY)
+            val soaParticles3x = soaParticlesPrev++soaParticles++soaParticlesNext
+
+            val (soaBinnedX, soaBinnedY, soaTau) = getTau(soaParticles3x,soaBinsX,soaBinsY)
+            val soaModY = soaBinnedY.map(y => (-y % (2*math.Pi)))
             val soaModX = soaBinnedX.map(x => -x)
-            val gradientSOA = ColorGradient(0.0 -> BlackARGB, soaTau.min -> BlueARGB, soaTau.max -> GreenARGB)
+            val soaAvgTau = getRealAvg(soaTau, gradCut)
+            val gradientSOA = ColorGradient(0.0 -> BlackARGB, soaAvgTau -> BlueARGB, soaTau.max -> GreenARGB)
             val soaSurfGrp = SeqToIntSeries((0 until (soaBinsX*soaBinsY) by 1).toSeq.map(i => i/soaBinsY))
             val (soaSliceBinX, soaTauSlice) = getSurfDensitySlice(soaParticles,200,0.1)
             val soaSurfStyle = new ColoredSurfaceStyle(soaModX,soaModY,group=soaSurfGrp,colors=gradientSOA(soaTau))
@@ -78,7 +92,6 @@ object CompareBCs {
             //save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix+ "soaSlicePlot" + s".$step.png", width = width, height = height))
             val updaterSOASlice = if (display) Some(SwingRenderer(soaSlice, width, height, true)) else None
             println("Done drawing SOA Slice Step # " + step)
-
 
 
             //Now for the PWPS Plots
@@ -107,12 +120,12 @@ object CompareBCs {
                     }
                 }
             }
-            val pwpsModY = allFBY.map(y => y % 6.283185 - 3.141592)
-            //val pwpsNonZeroTau = allFBTau.filter(_ > 0.0)
-            //val pwpsAvgTau = pwpsNonZeroTau.sum/pwpsNonZeroTau.length
-            //println("pwps avg",pwpsAvgTau)
-            val gradientPWPS = ColorGradient(0.0 -> BlackARGB, allFBTau.min -> BlueARGB, allFBTau.max -> GreenARGB)
-            val pwpsSurfGrp = SeqToIntSeries((0 until len by 1).toSeq.map(i => i/fixedBins(0).length))
+            val pwpsModY = allFBY.map(y => y % (2*math.Pi))
+            //val pwpsNonZeroTau = allFBTau.filter(_ > allFBTau.max/3)
+            val pwpsAvgTau = getRealAvg(allFBTau, gradCut)//pwpsNonZeroTau.sum/pwpsNonZeroTau.length
+            println("pwps avg",pwpsAvgTau)
+            val gradientPWPS = ColorGradient(0.0 -> BlackARGB, pwpsAvgTau -> BlueARGB, allFBTau.max -> GreenARGB)
+            val pwpsSurfGrp = SeqToIntSeries((0 until len by 1).toSeq.map(i => i/fixedBins.length))
             val pwpsSurfStyle = new ColoredSurfaceStyle(allFBX,pwpsModY,group=pwpsSurfGrp,colors=gradientPWPS(allFBTau))
             val pwpsSliceStyle = ScatterStyle(pwpsSliceX, pwpsSliceTau.map(t => t/pwpsSliceTau.max), symbolWidth=5, symbolHeight=5)
             
@@ -129,41 +142,74 @@ object CompareBCs {
             println("Done drawing PWPS Slice Step # " + step)
 
             
+            if(doGlobal){
+                //Now the globals
+                //
 
-            //Now the globals
-            //
-            val globParticles = CartAndRad.read(new File(globdir, "CartAndRad."+step+".bin")).filter(p => p.y <= -(2*(soaMinY)-soaMaxY) % 6.283185 - 3.141592 && p.y >= -(2*soaMaxY-soaMinY) % 6.283185 - 3.141592)
-            val (globBinnedX, globBinnedY, globTau) = getTau(globParticles,globBinsX,globBinsY)
-            val gradientGlobal = ColorGradient(0.0 -> BlackARGB, globTau.min -> BlueARGB, globTau.max -> GreenARGB)
-            val globSurfGrp = SeqToIntSeries((0 until (globBinsX*globBinsY) by 1).toSeq.map(i => i/globBinsY))
-            val (globSliceBinX, globTauSlice) = getSurfDensitySlice(globParticles,50,0.1)
-            val globSurfStyle = new ColoredSurfaceStyle(globBinnedX,globBinnedY,group=globSurfGrp,colors=gradientGlobal(globTau))
-            val globSliceStyle = ScatterStyle(globSliceBinX, globTauSlice.map(t => t/globTauSlice.max), symbolWidth=5, symbolHeight=5)
-            
-            val globSurf = Plot.simple(globSurfStyle, title = ("Global Surface Plot "+step))
-                .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
-                .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.2f"))))
-            val updaterGlobSurf = if (display) Some(SwingRenderer(globSurf, width, height, true)) else None
-            println("Done drawing Global Surface Step # " + step)
-            val globSlice = Plot.scatterPlot(globSliceBinX,globTauSlice,symbolColor=BlackARGB,symbolSize=5,title=("Slice Global "+step),xLabel="radial",yLabel="coveredArea")
-                .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
-                .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
-            //save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix+ "soaSlicePlot" + s".$step.png", width = width, height = height))
-            val updaterGlobSlice = if (display) Some(SwingRenderer(globSlice, width, height, true)) else None
-            println("Done drawing Global Slice Step # " + step)
+                //use y = (y + 2 * math.Pi) % (2*math.Pi) for all 3
+                val globParticles = CartAndRad.read(new File(globdir, "CartAndRad."+step+".bin"))
+                    .filter(p => (p.y + 2*math.Pi) % (2*math.Pi) <= -(2*(soaMinY)-soaMaxY) % (2*math.Pi) && 
+                    (p.y + 2*math.Pi) % (2*math.Pi) >= -(2*soaMaxY-soaMinY) % (2*math.Pi))
+                val (globBinnedX, globBinnedY, globTau) = getTau(globParticles,globBinsX,globBinsY)
+                val globModY = globBinnedY.map(y => (y + 2*math.Pi) % (2*math.Pi))
+                val globTauAvg = getRealAvg(globTau, gradCut)
+                val gradientGlobal = ColorGradient(0.0 -> BlackARGB, globTauAvg -> BlueARGB, globTau.max -> GreenARGB)
+                val globSurfGrp = SeqToIntSeries((0 until (globBinsX*globBinsY) by 1).toSeq.map(i => i/globBinsY))
+                val (globSliceBinX, globTauSlice) = getSurfDensitySlice(globParticles,50,0.1)
+                val globSurfStyle = new ColoredSurfaceStyle(globBinnedX,globModY,group=globSurfGrp,colors=gradientGlobal(globTau))
+                val globSliceStyle = ScatterStyle(globSliceBinX, globTauSlice.map(t => t/globTauSlice.max), symbolWidth=5, symbolHeight=5)
+                
+                val globSurf = Plot.simple(globSurfStyle, title = ("Global Surface Plot "+step))
+                    .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
+                    .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.2f"))))
+                val updaterGlobSurf = if (display) Some(SwingRenderer(globSurf, width, height, true)) else None
+                println("Done drawing Global Surface Step # " + step)
+                val globSlice = Plot.scatterPlot(globSliceBinX,globTauSlice,symbolColor=BlackARGB,symbolSize=5,title=("Slice Global "+step),xLabel="radial",yLabel="coveredArea")
+                    .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
+                    .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
+                //save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix+ "soaSlicePlot" + s".$step.png", width = width, height = height))
+                val updaterGlobSlice = if (display) Some(SwingRenderer(globSlice, width, height, true)) else None
+                println("Done drawing Global Slice Step # " + step)
 
-            //Grid Plot
-            //
-            val topRow = Seq(globSurfStyle,soaSurfStyle,pwpsSurfStyle)
-            val bottomRow = Seq(globSliceStyle, soaSliceStyle, pwpsSliceStyle)
-            val styles = Seq(topRow, bottomRow)
-            val grid = Plot.gridNN(styles)
-            // .withModifiedAxis[NumericAxis]("y","y2",_.updatedName("Optical Depth"))
-            // .updatedStyleYAxis("y2", 1, 0)
-            // .updatedStyleYAxis("y2", 1, 1)
-            // .updatedStyleYAxis("y2", 1, 2)
-            val updaterGrid = if (display) Some(SwingRenderer(grid, width, height, true)) else None
+                //Grid Plot
+                //
+                val topRow = Seq(globSurfStyle,soaSurfStyle,pwpsSurfStyle)
+                val bottomRow = Seq(globSliceStyle, soaSliceStyle, pwpsSliceStyle)
+                val styles = Seq(topRow, bottomRow)
+                val grid = Plot.gridNN(styles)
+                .withModifiedAxis[NumericAxis]("y","y2",_.updatedName("Normalized Optical Depth"))
+                .updatedStyleYAxis("y2", 1, 0)
+                .updatedStyleYAxis("y2", 1, 1)
+                .updatedStyleYAxis("y2", 1, 2)
+                .updatedAxis[NumericAxis]("x", _.min(-2.0/(3*31)-15.0/139380).max(-2.0/(3*31)+3*15.0/139380).numberFormat("%1.4f")
+                    .updatedName("Radial").spacing(1e-4))
+                .updatedAxis[NumericAxis]("y", _.updatedName("Azimuthal"))
+                val updaterGrid = if (display) Some(SwingRenderer(grid, width, height, true)) else None
+                save.foreach(prefix => SwingRenderer.saveToImage(grid, prefix+".png", width = width, height = height))
+            }
+            else{
+                //Grid Plot
+                //
+                val topRow = Seq(soaSurfStyle,pwpsSurfStyle)
+                val bottomRow = Seq(soaSliceStyle, pwpsSliceStyle)
+                val styles = Seq(topRow, bottomRow)
+                val grid = Plot.gridNN(styles)
+                .withModifiedAxis[NumericAxis]("y","y2",_.updatedName("Normalized Optical Depth"))
+                .updatedStyleYAxis("y2", 1, 0)
+                .updatedStyleYAxis("y2", 1, 1)
+                .updatedAxis[NumericAxis]("x", _.min(-2.0/(3*31)-15.0/139380).max(-2.0/(3*31)+3*15.0/139380).numberFormat("%1.4f")
+                    .updatedName("Radial").spacing(1e-4))
+                .updatedAxis[NumericAxis]("y", _.updatedName("Azimuthal"))
+                val updaterGrid = if (display) Some(SwingRenderer(grid, width, height, true)) else None
+                save.foreach(prefix => SwingRenderer.saveToImage(grid, prefix+".png", width = width, height = height))
+            }
         }
+    }
+
+    def getRealAvg(data: Seq[Double], cutoffRatio: Double): Double = {
+        val max = data.max
+        val filtered = data.filter(d => d > cutoffRatio*max)
+        filtered.sum/filtered.length
     }
 
     def getTau(particles: IndexedSeq[Particle], numBinsX: Int, numBinsY: Int): (Array[Double], Array[Double], Array[Double]) = {
