@@ -47,10 +47,8 @@ object SOACartAndRadPeakFinder {
         // writeFile("extremeLocations."+start+"-"+end+".txt", Seq(""+(end-start+1),"\n"))
         for(step <- start to end by 100){
             val particles = CartAndRad.read(new File(dir, "CartAndRad."+step+".bin"))
-            val xValues = particles.map(_.x)
-            val yValues = particles.map(_.y)
-            val foo = Seq(xValues.min,xValues.max)
-            val bar = Seq(0,0)
+            val xValues = particles.map(p => -p.x)
+            val yValues = particles.map(p => -p.y)
 
             if(save.nonEmpty || display){
                 if(binCount.nonEmpty){
@@ -59,8 +57,9 @@ object SOACartAndRadPeakFinder {
 
                     val window = 20
                     val extrema = MinMaxFinder.getLocalExtrema(binX,coveredArea,window,false).filter(_.isMax)
-                    val locations = extrema.map { e => e.x}
+                    val locations = extrema.map { e => -e.x}
                     val extremeValues = extrema.map { e => e.y}
+                    
 
                     // val lines = Array.ofDim[String](extrema.length+2)
                     // lines(0) = step + "\n"
@@ -70,26 +69,21 @@ object SOACartAndRadPeakFinder {
                     // }
                     // writeFile("extremeLocations."+start+"-"+end+".txt", lines)
 
-                    val plot = Plot.scatterPlots(Seq((binX,coveredArea,BlackARGB,5),(locations,extremeValues,RedARGB,10)),title=("Step number "+step),xLabel="radial",yLabel="coveredArea")
+                    val plot = Plot.scatterPlots(Seq((binX.map(x => -x),coveredArea.map(ca => ca/coveredArea.max),BlackARGB,5),(locations,extremeValues.map(ev => ev/extremeValues.max),RedARGB,10)),title=("Step number "+step),xLabel="radial",yLabel="Normalized Optical Depth")
                     .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
-                    .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
+                    .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.1f"))))
                     save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$step.png", width = width, height = height))
-                    println("Done drawing Step # " + step)
-
                     val updater = if (display) Some(SwingRenderer(plot, width, height, true)) else None
                     println("Done drawing Step # " + step)
                 }
                 else{
                     val pixelSizes = particles.map(_.rad*2*width/CELL_WIDTH)
-
                     println("px size",pixelSizes(0))
 
-                    val plot = Plot.scatterPlots(Seq((xValues,yValues,BlackARGB,pixelSizes),(foo,bar,RedARGB,0)),title=("Step number "+step),xLabel="radial",yLabel="azimuthal")
+                    val plot = Plot.scatterPlot(xValues,yValues,symbolColor=BlackARGB,symbolSize=pixelSizes,title=("Step number "+step),xLabel="radial",yLabel="azimuthal")
                     .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
                     .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.2f"))))
                     save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix + s".$step.png", width = width, height = height))
-                    println("Done drawing Step # " + step)
-
                     val updater = if (display) Some(SwingRenderer(plot, width, height, true)) else None
                     println("Done drawing Step # " + step)
                 }
