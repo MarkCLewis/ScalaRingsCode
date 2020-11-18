@@ -7,20 +7,22 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 //import scala.swing._
-import java.io.File
 //import ExtendedSlidingBoxSims.SimSpec
 import javax.imageio._
 import scala.swing.{MainFrame, Label, Swing, Alignment}
 import java.net.URL
 import data.HighVelocityCollisions
+import java.io._
 
 // Draw stuff using photometry
 object Render {
+
   def main(args: Array[String]): Unit = {
     val step = 10000
 
-    val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/CartAndRad." + step.toString + ".bin")
-//    val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/MesoScaleFeatures/AGUPosterRun/a=123220:q=2.8:min=1.5e-9:max=1.5e-8:rho=0.4:sigma=45.5/CartAndRad.4420.bin")
+    val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/CartAndRad.0.bin")
+    //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/CartAndRad." + step.toString + ".bin")
+//    val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/MesoScaleFeatures/AGUPosterRun/a=123220:q=2.8:min=15e-9:max=1.5e-8:rho=0.4:sigma=45.5/CartAndRad.4420.bin")
     val impactURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/HighVelColls.bin")
     val ringGeom = new KDTreeGeometry[BoundingBox](data.CartAndRad.readStream(carURL.openStream)
       .filter(p => p.y < 3e-5 && p.y > -3e-5)
@@ -55,7 +57,7 @@ object Render {
     val up = Vect(0, 1, 0)
     val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
     val img = new rendersim.RTBufferedImage(bimg)
-    val threads: Int = 12
+    val threads: Int = 4
 
     val frame = new MainFrame {
       title = "Dust Frame"
