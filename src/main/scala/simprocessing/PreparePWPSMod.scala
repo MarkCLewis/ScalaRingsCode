@@ -1,5 +1,11 @@
 package simprocessing
 
+import swiftvis2.plotting.styles._
+import swiftvis2.plotting._
+import swiftvis2.plotting.renderer.Renderer
+import swiftvis2.plotting.Plot.GridData
+import swiftvis2.plotting.renderer.SwingRenderer
+
 import data.CartAndRad
 import util.Particle
 import util.GCCoord
@@ -12,22 +18,25 @@ object PreparePWPSMod {
         val TESTING = true
         if(TESTING){
             val (xb, yb) = (2,2)
-            val xs = Seq(0, 3, 6, 1, 2, 10)
-            val ys = Seq(0, 1, 2, 6, 8, 10)
+            val xs = Seq(8, 6, 6, 1, 2, 10)
+            val ys = Seq(8, 7.5, 2, 6, 8, 10)
             val ps = (0 to 5 by 1).map(i => GCCoord(xs(i),ys(i),0,0,0,0,0.5))
             val cells = getCellStats(ps,xb,yb,1)
             cells.foreach(l => l.foreach(c => println(c.pcnt)))
             val probSet = makeProbSet(cells, xb,yb)
             println(" ")
             probSet.foreach(println(_))
-            for(k <- 0 until 10){
-                val (i, j) = chooseCell(probSet, xb,yb)
-                println("i, j",i,j)
-            }
 
             var systemVolume = ps.length * (4.0/3)*math.Pi*math.pow(ps(0).rad,3)
+            println("systemVolume",systemVolume)
+
             val pDiv = 2
+            val newPRad = ps(0).rad/pDiv
+            val first = cells(0)(0)
+            val last = cells(xb-1)(yb-1)
+            val bounds = Seq(first.x0, first.y0, last.x0+last.xSz, last.y0+last.ySz)
             val newGrid = Array.fill(xb,yb)(mutable.ArrayBuffer[GCCoord]())
+
             while(systemVolume > 0){
                 println("systemVolume",systemVolume)
                 val (i, j) = chooseCell(probSet, xb,yb)
@@ -41,11 +50,19 @@ object PreparePWPSMod {
                 }
                 systemVolume -= placeRandomParticle(cells(i)(j), neighbors.toSeq, pDiv)
             }
-            println("systemVolume",systemVolume)
+            displayOldParticles(ps,bounds)
+            displayNewParticles(newGrid,xb,yb,newPRad,bounds)
 
-            //finalParticles = newGrid.map()
+            val finalParticles = mutable.ArrayBuffer[GCCoord]()
+            for(i <- 0 until xb){
+                for(j <- 0 until yb){
+                    for(p <- newGrid(i)(j)){
+                        finalParticles += p
+                    }
+                }
+            }
 
-            sys.exit()
+            //sys.exit()
         }
         // if (args.contains("-help") || args.length < 1) {
         //     println("Arguments:")
@@ -174,7 +191,7 @@ object PreparePWPSMod {
     def placeRandomParticle(cell: Cell, newNearCells: Seq[mutable.ArrayBuffer[GCCoord]], pDiv: Double): Double = {
         var newP = GCCoord(0,0,0,0,0,0,-1)
         
-        while(checkOverlap(newP,newNearCells)){
+        while(checkOverlap(newP,newNearCells) || newP.rad < 0){
             val X = scala.util.Random.nextDouble()*cell.xSz + cell.x0
             val Y = scala.util.Random.nextDouble()*cell.ySz + cell.y0
             val e = scala.util.Random.nextGaussian()*cell.e._2 + cell.e._1
@@ -192,8 +209,10 @@ object PreparePWPSMod {
 
     def checkOverlap(newParticle: GCCoord, newNearCells: Seq[mutable.ArrayBuffer[GCCoord]]): Boolean = {
         val currParticles = newNearCells(4) //center cell
+        var overlaps = false
         for(p <- currParticles){
             if(particleOverlap(newParticle, p)){
+                println("We should be returning true")
                 return true
             }
         }
@@ -222,9 +241,45 @@ object PreparePWPSMod {
         val stdev = math.sqrt(set.map(x => math.pow(x-mean,2)).sum/set.length)
         (mean, stdev)
     }
+
+    def displayNewParticles(newGrid: Array[Array[mutable.ArrayBuffer[GCCoord]]], xb:Int, yb:Int, pRad:Double, bounds: Seq[Double]): Unit = {
+        val pxSize = 1000
+        val xSize = bounds(2)-bounds(0)
+        val ySize = bounds(3)-bounds(1)
+        val allX = mutable.ArrayBuffer[Double]()
+        val allY = mutable.ArrayBuffer[Double]()
+        for(i <- 0 until xb){
+            for(j <- 0 until yb){
+                for(p <- newGrid(i)(j).map(_.toCart)){
+                    println("Adding (x,y) = ",p.x,p.y,"to the plot")
+                    allX += p.x
+                    allY += p.y
+                }
+            }
+        }
+        val style = ScatterStyle(allX.toSeq, allY.toSeq, symbolWidth=pRad*(1000/xSize), symbolHeight=pRad*(1000/ySize))
+        val plot = Plot.simple(style, title="New Particles")
+            .updatedAxis[NumericAxis]("x", _.min(bounds(0)).max(bounds(2)).updatedName("x").numberFormat("%1.2f"))
+            .updatedAxis[NumericAxis]("y", _.min(bounds(1)).max(bounds(3)).updatedName("y").numberFormat("%1.2f"))
+        val updater = if (true) Some(SwingRenderer(plot, pxSize, pxSize, true)) else None
+    }
+
+    def displayOldParticles(oldParticles: Seq[GCCoord], bounds: Seq[Double]): Unit = {
+        val pxSize = 1000
+        val pRad = oldParticles(0).rad
+        val xSize = bounds(2)-bounds(0)
+        val ySize = bounds(3)-bounds(1)
+        val allX = oldParticles.map(p => p.toCart.x)
+        val allY = oldParticles.map(p => p.toCart.y)
+        val style = ScatterStyle(allX.toSeq, allY.toSeq, symbolWidth=pRad*(1000/xSize), symbolHeight=pRad*(1000/ySize))
+        val plot = Plot.simple(style, title="Old Particles")
+            .updatedAxis[NumericAxis]("x", _.min(bounds(0)).max(bounds(2)).updatedName("x").numberFormat("%1.2f"))
+            .updatedAxis[NumericAxis]("y", _.min(bounds(1)).max(bounds(3)).updatedName("y").numberFormat("%1.2f"))
+        val updater = if (true) Some(SwingRenderer(plot, pxSize, pxSize, true)) else None
+    }
     
     case class Cell(x0: Double, y0: Double, xSz:Double, ySz: Double, pcnt: Int, pRad: Double, pMass: Double, X: (Double, Double), 
         Y: (Double, Double), e: (Double, Double), phi: (Double, Double), I: (Double, Double), zeta: (Double, Double)){
             def volume(): Double = pcnt * (4.0/3)*math.Pi*math.pow(pRad,3)
-        }
+    }
 }
