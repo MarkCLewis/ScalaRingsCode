@@ -7,7 +7,7 @@ import collection.mutable
 object IsolateCartCluster{
   def main(args: Array[String]): Unit = {
     if (args.length < 4) {
-      println("Usage: infile outfile (-dist mult | -iter mult")
+      println("Usage: infile outfile (-dist mult | -iter mult)")
       return
     }
     val inFile = args(0)
@@ -16,7 +16,7 @@ object IsolateCartCluster{
     val particles = CartAndRad.read(new java.io.File(inFile))
     val bigBoy = particles.maxBy(_.rad)
     val survivors = if (args(2) == "-dist") {
-      particles.filter(p => distance(p, bigBoy) < 1.5*bigBoy.rad)
+      particles.filter(p => distance(p, bigBoy) < mult*bigBoy.rad)
     } else {
       val keep = mutable.Buffer[Particle](bigBoy)
       val rest = mutable.Buffer[Particle](particles.filter(_ != bigBoy):_*)
