@@ -13,14 +13,13 @@ import java.io._
 import scala.collection.mutable
 
 object AnalyzeDensityWaves {
+    val SIGMA = 450 //kg/m2
+    val RL = -2/(3*31.0) //dimensionless. Multiply by 139380km to get actual radius
+    val RP = 139380 //km
+    val G = 6.67430e-11 //m3/kgs2
+    val moonPeriod = 52963.2 //seconds
+    val mNumber = 32
 	def main(args: Array[String]): Unit = {
-        val SIGMA = 450 //kg/m2
-        val RL = -2/(3*31.0) //dimensionless. Multiply by 139380km to get actual radius
-        val RP = 139380 //km
-        val G = 6.67430e-11 //m3/kgs2
-        val moonPeriod = 52963.2 //seconds
-        val mNumber = 32
-
         if (args.contains("-help") || args.length < 1) {
             println("Arguments:")
             println("\t-dir path: path to directory, defaults to current directory")
@@ -131,30 +130,37 @@ object AnalyzeDensityWaves {
                 }
                 println("radii now has", allRadii.length,"elements")
             }
-
-            val (slope, intercept) = doLinearFit(allRadii.toSeq, allWavenumbers.toSeq)
-            //val slope = (3*(mNumber-1)*2*math.Pi) / (G*450*math.pow((moonPeriod*(mNumber-1))/(mNumber),2))
-            //val intercept = findBestIntercept(radialValues,wavenumber,slope)
-            println("slope",slope,"intercept",intercept)
-            val fitX = Seq(lowFracDist, highFracDist)
-            val fitY = fitX.map(x => slope*x + intercept)
-
             val kStyle = ScatterStyle(allRadii, allWavenumbers, symbolWidth=5, symbolHeight=5)
-            val fitStyle = ScatterStyle(fitX, fitY, symbolWidth=0, symbolHeight=0, colors=RedARGB,
-                lines = Some(ScatterStyle.LineData(0, Renderer.StrokeData(1,Nil))))
-
-            val plotBig = Plot.stacked(Seq(kStyle,fitStyle),xLabel="Fractional Distance From Resonance",yLabel="Wavenumber (1/km)")
+            val kPlotBig = Plot.simple(kStyle,xLabel="Fractional Distance From Resonance",yLabel="Wavenumber (1/km)")
             .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f")))
                 .min(lowFracDist).max(highFracDist))
             .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.2f")))
                 .min(0.0).max(2.5))
-            save.foreach(prefix => SwingRenderer.saveToImage(plotBig, prefix + ".png", width = width, height = height))
-            val updaterLocs = if (true) Some(SwingRenderer(plotBig, width, height, true)) else None
+            save.foreach(prefix => SwingRenderer.saveToImage(kPlotBig, prefix + ".png", width = width, height = height))
+            val updaterK = if (true) Some(SwingRenderer(kPlotBig, width, height, true)) else None
             println("Done drawing Big Plot")
+
+            val allDensities = (allRadii.toSeq, allWavenumbers.toSeq).zipped.map{(r,k) => getLocalDensity(k/r)}
+            val sStyle = ScatterStyle(allRadii.toSeq, allDensities, symbolWidth=5, symbolHeight=5)//, colors=RedARGB,
+                //lines = Some(ScatterStyle.LineData(0, Renderer.StrokeData(1,Nil))))
+            val sigmaPlotBig = Plot.simple(sStyle,xLabel="Fractional Distance From Resonance",yLabel="Surface Density (kg/m^2)")
+            .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f")))
+                )//.min(lowFracDist).max(highFracDist))
+            .updatedAxis[NumericAxis]("y", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.2f")))
+                )//.min(0.0).max(3.0))
+            save.foreach(prefix => SwingRenderer.saveToImage(sigmaPlotBig, prefix + ".png", width = width, height = height))
+            val updaterSigma = if (true) Some(SwingRenderer(sigmaPlotBig, width, height, true)) else None
+            println("Done drawing Density Plot")
         }
         
 	}
 
+    def getLocalDensity(slope: Double): Double = {
+        val numerator = 3*(mNumber-1)
+        val sqr = (mNumber-1)*moonPeriod/mNumber
+        val denominator = 2*math.Pi*G*sqr*sqr*slope
+        numerator/denominator
+    }
 
     //takes a set of points and returns a pair of coordinates as Seq(x0,y0,x1,y1)
     def doLinearFit(x: Seq[Double], y: Seq[Double]): (Double, Double) = {
