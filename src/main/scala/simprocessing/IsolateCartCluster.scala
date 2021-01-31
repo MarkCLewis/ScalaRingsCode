@@ -15,6 +15,11 @@ object IsolateCartCluster{
     val mult = args(3).toDouble
     val particles = CartAndRad.read(new java.io.File(inFile))
     val bigBoy = particles.maxBy(_.rad)
+    for (p <- particles) {
+      if (distance(p, bigBoy) < bigBoy.rad + p.rad) {
+        println(s"$p is in big boy")
+      }
+    }
     val survivors = if (args(2) == "-dist") {
       particles.filter(p => distance(p, bigBoy) < mult*bigBoy.rad)
     } else {
@@ -22,7 +27,7 @@ object IsolateCartCluster{
       val rest = mutable.Buffer[Particle](particles.filter(_ != bigBoy):_*)
       var done = false
       while (!done) {
-        val close = mutable.Buffer[Particle]()
+        val close = mutable.Set[Particle]()
         for (r <- rest; k <- keep) {
           if (distance(r, k) < mult * (r.rad + k.rad)) close += r
         }
