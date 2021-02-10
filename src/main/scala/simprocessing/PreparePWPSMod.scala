@@ -108,7 +108,7 @@ object PreparePWPSMod {
             }
             val dir = new File(args.sliding(2).find(_(0) == "-dir").map(_(1)).getOrElse("."))
             val step = args.sliding(2).find(_(0) == "-step").map(_(1)).getOrElse("0")
-            val div = args.sliding(2).find(_(0) == "-div").map(_(1).toInt).getOrElse(2)
+            val div = args.sliding(2).find(_(0) == "-div").map(_(1).toDouble).getOrElse(2.0)
             val avgCnt = args.sliding(2).find(_(0) == "-cnt").map(_(1).toInt).getOrElse(100)
             val width = args.sliding(2).find(_(0) == "-width").map(_(1).toInt).getOrElse(1000)
             val height = args.sliding(2).find(_(0) == "-height").map(_(1).toInt).getOrElse(1000)
@@ -121,7 +121,6 @@ object PreparePWPSMod {
             val cartParticles = CartAndRad.read(new File(dir, "CartAndRad."+step+".bin"))
             val particles = cartParticles.map(p => GCCoord(p))
             println(particles(0).getClass)
-            //val rho = 0.5 //g/cm^3
             val pVol = (4.0/3)*math.Pi*math.pow(particles(0).rad,3)
             val numP = particles.length
             // //modify the particles in some way
