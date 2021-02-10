@@ -16,12 +16,14 @@ import swiftvis2.plotting.renderer.SwingRenderer
 
 object CartAndRadSummary {
 	def main(args: Array[String]): Unit = {
-        if (args.contains("-help") || args.length != 1) {
+        if (args.contains("-help") || (args.length != 1 && args.length != 3)) {
             println("Arguments:")
             println("The file you want to look at i.e. \\data\\lewislab\\.....\\CartAndRad.xxxxx.bin Defaults to step zero")
+            println("-save name: The save name for a png plot of the particles")
             sys.exit()
         }
         val particles = CartAndRad.read(new File(args(0)))
+        val save = args.sliding(2).find(_(0) == "-save").map(_(1))
         val xValues = particles.map(_.x)
         val yValues = particles.map(_.y)
         val (minx,maxx) = (-0.02163, -0.02115)//(xValues.min,xValues.max)
@@ -36,14 +38,13 @@ object CartAndRadSummary {
         //plotParticleDistributions(particles.map(p => GCCoord(p)), xBins, yBins)
         val width = 10000
         val height = 10000
-        val save = Some("highres.87500.png")
 
         val style = ScatterStyle(xValues.toSeq, yValues.toSeq, symbolWidth=2*pRad*(width/(maxx-minx)), symbolHeight=2*pRad*(height/(maxy-miny)))
         val plot = Plot.simple(style, title="Particles")
             .updatedAxis[NumericAxis]("x", _.min(minx).max(maxx).updatedName("x").numberFormat("%1.4f"))
             .updatedAxis[NumericAxis]("y", _.min(miny).max(maxy).updatedName("y").numberFormat("%1.5f"))
         //val updater = if (true) Some(SwingRenderer(plot, width, height, true)) else None
-        save.foreach(prefix => SwingRenderer.saveToImage(plot, prefix, width = width, height = height))
+        save.foreach(prefix => SwingRenderer.saveToImage(plot, (prefix+".png"), width = width, height = height))
         
         // val plot = Plot.histogramPlotFromData(eBins, eValues, GreenARGB)
         //     .updatedAxis[NumericAxis]("x", _.updatedName("e").numberFormat("%1.6f"))

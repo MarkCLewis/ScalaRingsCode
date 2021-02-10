@@ -108,7 +108,7 @@ object PreparePWPSMod {
             }
             val dir = new File(args.sliding(2).find(_(0) == "-dir").map(_(1)).getOrElse("."))
             val step = args.sliding(2).find(_(0) == "-step").map(_(1)).getOrElse("0")
-            val div = args.sliding(2).find(_(0) == "-div").map(_(1).toInt).getOrElse(2)
+            val div = args.sliding(2).find(_(0) == "-div").map(_(1).toDouble).getOrElse(2.0)
             val avgCnt = args.sliding(2).find(_(0) == "-cnt").map(_(1).toInt).getOrElse(100)
             val width = args.sliding(2).find(_(0) == "-width").map(_(1).toInt).getOrElse(1000)
             val height = args.sliding(2).find(_(0) == "-height").map(_(1).toInt).getOrElse(1000)
@@ -121,7 +121,6 @@ object PreparePWPSMod {
             val cartParticles = CartAndRad.read(new File(dir, "CartAndRad."+step+".bin"))
             val particles = cartParticles.map(p => GCCoord(p))
             println(particles(0).getClass)
-            //val rho = 0.5 //g/cm^3
             val pVol = (4.0/3)*math.Pi*math.pow(particles(0).rad,3)
             val numP = particles.length
             // //modify the particles in some way
@@ -193,22 +192,25 @@ object PreparePWPSMod {
         val ySpacing = (yMax-yMin)/yBins
         val divPart = Array.fill(xBins,yBins)(mutable.ArrayBuffer[GCCoord]())
         for(p <- gcParticles){
-            var i = 0
-            var counted = false
-            while(i < xBins && !counted){
-                var j = 0
-                while(j < yBins && !counted){
-                    val x0 = xMin+i*xSpacing
-                    val y0 = yMin+j*ySpacing
-                    if(p.X >= x0 && (p.X < x0+xSpacing || i == xBins-1 && p.X == x0+xSpacing) && p.Y >= y0 && (p.Y < y0+ySpacing ||
-                    j == yBins-1 && p.Y == y0+ySpacing)){
-                        divPart(i)(j) += p
-                        counted = true
-                    }
-                    j += 1
-                }
-                i += 1
-            }
+            val i = ((p.X - xMin)*xBins/(xMax - xMin)).toInt
+            val j = ((p.Y - yMin)*yBins/(yMax - yMin)).toInt
+            divPart(i)(j) += p
+            // var i = 0
+            // var counted = false
+            // while(i < xBins && !counted){
+            //     var j = 0
+            //     while(j < yBins && !counted){
+            //         val x0 = xMin+i*xSpacing
+            //         val y0 = yMin+j*ySpacing
+            //         if(p.X >= x0 && (p.X < x0+xSpacing || i == xBins-1 && p.X == x0+xSpacing) && p.Y >= y0 && (p.Y < y0+ySpacing ||
+            //         j == yBins-1 && p.Y == y0+ySpacing)){
+            //             divPart(i)(j) += p
+            //             counted = true
+            //         }
+            //         j += 1
+            //     }
+            //     i += 1
+            // }
         }
         //for(i <- 0 until xBins){ for(j <- 0 until yBins){ println(divPart(i)(j).length)} }
         val grid = Array.ofDim[Cell](xBins,yBins)

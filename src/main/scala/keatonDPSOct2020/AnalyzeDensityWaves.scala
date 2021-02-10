@@ -130,6 +130,10 @@ object AnalyzeDensityWaves {
                 }
                 println("radii now has", allRadii.length,"elements")
             }
+            val bigSlope = doPropFit(allRadii,allWavenumbers)
+            println("Slope on k(x) = " + bigSlope)
+            println("Gives " + getLocalDensity(bigSlope))
+
             val kStyle = ScatterStyle(allRadii, allWavenumbers, symbolWidth=5, symbolHeight=5)
             val kPlotBig = Plot.simple(kStyle,xLabel="Fractional Distance From Resonance",yLabel="Wavenumber (1/km)")
             .updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f")))
