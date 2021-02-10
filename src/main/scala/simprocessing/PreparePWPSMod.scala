@@ -192,22 +192,25 @@ object PreparePWPSMod {
         val ySpacing = (yMax-yMin)/yBins
         val divPart = Array.fill(xBins,yBins)(mutable.ArrayBuffer[GCCoord]())
         for(p <- gcParticles){
-            var i = 0
-            var counted = false
-            while(i < xBins && !counted){
-                var j = 0
-                while(j < yBins && !counted){
-                    val x0 = xMin+i*xSpacing
-                    val y0 = yMin+j*ySpacing
-                    if(p.X >= x0 && (p.X < x0+xSpacing || i == xBins-1 && p.X == x0+xSpacing) && p.Y >= y0 && (p.Y < y0+ySpacing ||
-                    j == yBins-1 && p.Y == y0+ySpacing)){
-                        divPart(i)(j) += p
-                        counted = true
-                    }
-                    j += 1
-                }
-                i += 1
-            }
+            val i = ((p.X - xMin)*xBins/(xMax - xMin)).toInt
+            val j = ((p.Y - yMin)*yBins/(yMax - yMin)).toInt
+            divPart(i)(j) += p
+            // var i = 0
+            // var counted = false
+            // while(i < xBins && !counted){
+            //     var j = 0
+            //     while(j < yBins && !counted){
+            //         val x0 = xMin+i*xSpacing
+            //         val y0 = yMin+j*ySpacing
+            //         if(p.X >= x0 && (p.X < x0+xSpacing || i == xBins-1 && p.X == x0+xSpacing) && p.Y >= y0 && (p.Y < y0+ySpacing ||
+            //         j == yBins-1 && p.Y == y0+ySpacing)){
+            //             divPart(i)(j) += p
+            //             counted = true
+            //         }
+            //         j += 1
+            //     }
+            //     i += 1
+            // }
         }
         //for(i <- 0 until xBins){ for(j <- 0 until yBins){ println(divPart(i)(j).length)} }
         val grid = Array.ofDim[Cell](xBins,yBins)
