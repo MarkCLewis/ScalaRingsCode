@@ -1,6 +1,6 @@
 package photometry
 
-import scala.swing.{MainFrame, Label, Swing, Alignment}
+import scala.swing.{MainFrame, Label, Swing, Alignment, TabbedPane}
 import swiftvis2.raytrace._
 import java.awt.image.BufferedImage
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -10,19 +10,18 @@ import javax.imageio._
 import java.net.URL
 import data.HighVelocityCollisions
 import java.io._
-
+import swiftvis2.plotting._
+import swiftvis2.plotting.renderer.SwingRenderer
 
 object PreRender {
   def main(args: Array[String]): Unit = {
     val step = 10000 // what does this do??
 
-    val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/CartAndRad.84200.bin") /*Keaton's file*/
+    val carURL = new URL("file:///home/mlewis/Rings/DensityWaves/CartAndRad.90500.bin") /*Keaton's file*/
     //val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad.0.bin")
-    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 20000))
+    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000))//, PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 2000))
     
-    val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
-    val img = new rendersim.RTBufferedImage(bimg)
-    val threads: Int = 8
+    val threads: Int = 24
     
     //for(i <- 0 to 100) {
       //val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad." + i*100 + ".bin")
@@ -30,18 +29,27 @@ object PreRender {
       //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/CartAndRad." + step.toString + ".bin")
       //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/MesoScaleFeatures/AGUPosterRun/a=123220:q=2.8:min=15e-9:max=1.5e-8:rho=0.4:sigma=45.5/CartAndRad.4420.bin")
       //val impactURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/HighVelColls.bin")
-      val particles = data.CartAndRad.readStream(carURL.openStream)//.sortBy(_.x).slice(1000, 10579144) /*This code is for Keaton's giant file*/
-      val minx = particles.minBy(_.x).x
-      val miny = particles.minBy(_.y).y
-      val maxx = particles.maxBy(_.x).x
-      val maxy = particles.maxBy(_.y).y
-      val centerx = (minx + maxx)/2
-      val centery = (miny + maxy)/2
+      val rawParticles = data.CartAndRad.readStream(carURL.openStream)
+      val centerParticles = rawParticles.sortBy(_.x).slice(1000, rawParticles.length-1000) /*This code is for Keaton's giant file*/
+      val minx = centerParticles.minBy(_.x).x
+      val miny = centerParticles.minBy(_.y).y
+      val maxx = centerParticles.maxBy(_.x).x
+      val maxy = centerParticles.maxBy(_.y).y
+      val centerx = (minx + maxx)/2 + 4e-5
+      val centery = (miny + maxy)/2 - 4e-5
       println(maxx-minx)
       println(maxy-miny)
+      val particles = centerParticles//.filter(p => (p.x - centerx).abs < 1e-4)// && (p.y - centery).abs < 5e-5)
+      // val plot = Plot.scatterPlot(
+      //     particles.map(_.x - centerx), 
+      //     particles.map(_.y - centery), 
+      //     symbolSize = particles.map(_.rad*2), 
+      //     xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
+      //   .updatedAxis[NumericAxis]("x", _.updatedName("x").numberFormat("%1.5f"))
+      //   .updatedAxis[NumericAxis]("y", _.updatedName("y").numberFormat("%1.5f"))
+      // SwingRenderer(plot, 1200, 1200, true)
       //println(particles.length)
       val ringGeom = new KDTreeGeometry[BoundingBox](particles
-        //.filter(p => p.y < 3e-5 && p.y > -3e-5)
         .map(p => new ScatterSphereGeom(Point(p.x-centerx, p.y-centery, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)), 5, BoxBoundsBuilder)
       println("I am carURL: " + carURL.getContent())
         
@@ -73,12 +81,27 @@ object PreRender {
 
       val geom = new ListScene(ringGeom)//, dustGeom) //, impactGeom)
 
+      val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
+      val img = new rendersim.RTBufferedImage(bimg)
+
+      val viewLoc = Point(-10e-3, 10e-3, -3e-3)
+      val viewData = Seq(ViewData.atOriginFrom(viewLoc, 0.008, img))
+
+      val totalPhotons = 1000000000L
+      val maxPasses = math.ceil(totalPhotons.toDouble / (lights.map(_.numPhotons).sum * threads)).toInt
+      println(s"Going $maxPasses passes.")
+
       val frame = new MainFrame {
         title = "Dust Frame"
         contents = new Label("", Swing.Icon(bimg), Alignment.Center)
       }
       frame.visible = true
-      Render.parallelRender(Array.fill(img.width, img.height)(RTColor.Black), 0, threads, lights, geom, img, frame)
+      val fFinalViews = Render.parallelRender(viewData, 0, 200, threads, lights, geom, Some(frame))
+      fFinalViews.foreach { vds =>
+        for ((vd, i) <- vds.zipWithIndex) {
+          ImageIO.write(vd.image.bimg, "PNG", new java.io.File(s"photoRender.${i.formatted("%04d")}.png"))
+        }
+      }
     }
   }
 //}

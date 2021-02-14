@@ -11,11 +11,11 @@ import javax.imageio.ImageIO
 import javax.imageio.ImageWriteParam
 import javax.imageio.IIOImage
 
-class RTBufferedImage(img: BufferedImage) extends RTImage {
-  def width: Int = img.getWidth
-  def height: Int = img.getHeight
+class RTBufferedImage(val bimg: BufferedImage) extends RTImage {
+  def width: Int = bimg.getWidth
+  def height: Int = bimg.getHeight
   def setColor(x: Int, y: Int, color: RTColor): Unit = {
-    img.setRGB(x, y, color.toARGB)
+    bimg.setRGB(x, y, color.toARGB)
   }
 }
 

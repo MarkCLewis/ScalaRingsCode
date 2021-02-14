@@ -9,40 +9,38 @@ import scala.concurrent.{Await, Future}
 import data.HighVelocityCollisions
 import java.io._
 import scala.swing.MainFrame
+import scala.swing.Frame
 
 
-object Render {
-  val viewLoc = Point(0, 0, -3e-5)
-  val forward = Vect(0, 0, 1)
-  val up = Vect(0, 1, 0)
+object Render {  
   
-  def parallelRender(startPixels: Array[Array[RTColor]], pass: Int, threads: Int, lights: List[PhotonSource], geom: ListScene, img: rendersim.RTBufferedImage, frame: MainFrame): Future[Array[Array[RTColor]]] = {
-        println(pass)
-        val futures = for(c <- 1 to threads; light <- lights) yield Future {
-          render(geom, light, viewLoc, forward, up, img)
-        }
-        Future.sequence(futures).map { pixelFrames =>
-          val endPixels = pixelFrames.foldLeft(startPixels)(addPixels)
-          writeToImage(endPixels, img)
-          frame.repaint()
-          endPixels
-        }.flatMap(ep => parallelRender(ep, pass + 1, threads, lights, geom, img, frame))
+  def parallelRender(vds: Seq[ViewData], currentPass: Int, maxPass: Int, threads: Int, lights: List[PhotonSource], geom: ListScene, frame: Option[Frame]): Future[Seq[ViewData]] = {
+    if (currentPass < maxPass) {
+      println(currentPass)
+      val futures = for(c <- 1 to threads; light <- lights) yield Future {
+        render(geom, light, vds)
       }
-
+      Future.sequence(futures).map { pixelFrames =>
+        val byView = pixelFrames.transpose
+        assert(byView.length == vds.length)
+        val endViewDatas = (byView, vds).zipped.map((pixels, vd) => pixels.foldLeft(vd)(_.addPixels(_)))
+        endViewDatas.foreach(_.writeToImage())
+        frame.foreach((_.repaint()))
+        endViewDatas
+      }.flatMap(evd => parallelRender(evd, currentPass + 1, maxPass, threads, lights, geom, frame))
+    } else Future.successful(vds)
+  }
 
   def render(
       geom: Geometry,
       source: PhotonSource,
-      viewLoc: Point,
-      forward: Vect, //Assume unit vector
-      up: Vect, //Assume unit vector
-      image: RTImage
-  ): Array[Array[RTColor]] = {
+      vds: Seq[ViewData]
+  ): Seq[Array[Array[RTColor]]] = {
     val interRect = geom.boundingBox
     val (xmin, xmax, ymin, ymax) =
       (interRect.min.x, interRect.max.x, interRect.min.y, interRect.max.y)
-    val right = forward.cross(up)
-    val pixels = Array.fill(image.width, image.height)(RTColor.Black)
+    val rights = vds.map(vd => vd.view.dir.cross(vd.view.up))
+    val pixelss = vds.map(vd => Array.fill(vd.image.width, vd.image.height)(RTColor.Black))
 
     for (_ <- 0L until source.numPhotons) {
       val ray = Ray(
@@ -57,31 +55,25 @@ object Render {
       val iDataOpt = geom.intersect(ray)
       iDataOpt.foreach { iData =>
         val interPoint = iData.point + iData.norm*1e-8
-        if (geom.intersect(Ray(interPoint, viewLoc)).isEmpty) {
-          val inRay = (viewLoc - interPoint).normalize
-          val scatter = iData.geom.asInstanceOf[ScatterGeometry].fractionScattered(ray.dir, inRay, iData)
-          if (scatter > 0.0) {
-            val fracForward = inRay dot forward
-            val px = ((inRay.dot(right)/fracForward / 0.707 + 1.0) * image.width / 2).toInt
-            val py = ((-inRay.dot(up)/fracForward / 0.707 + 1.0) * image.height / 2).toInt
-            if (px >= 0 && px < image.width && py >= 0 && py < image.height) {
-              pixels(px)(py) += source.light.col * iData.color * scatter
+        for ((vd, right, pixels) <- (vds, rights, pixelss).zipped) {
+          if (geom.intersect(Ray(interPoint, vd.view.loc)).isEmpty) {
+            val inRay = (vd.view.loc - interPoint).normalize
+            val scatter = iData.geom.asInstanceOf[ScatterGeometry].fractionScattered(ray.dir, inRay, iData)
+            if (scatter > 0.0) {
+              val fracForward = inRay dot vd.view.dir
+              if (fracForward < 0.0) {
+                val px = ((inRay.dot(right)/fracForward / vd.openingAngle + 1.0) * vd.image.width / 2).toInt
+                val py = ((-inRay.dot(vd.view.up)/fracForward / vd.openingAngle + 1.0) * vd.image.height / 2).toInt
+                if (px >= 0 && px < vd.image.width && py >= 0 && py < vd.image.height) {
+                  pixels(px)(py) += source.light.col * iData.color * scatter
+                }
+              }
             }
           }
         }
       }
     }
-    pixels
+    pixelss
   }
 
-  def addPixels(pixels1: Array[Array[RTColor]], pixels2: Array[Array[RTColor]]): Array[Array[RTColor]] = {
-    Array.tabulate(pixels1.length, pixels1(0).length)((i, j) => pixels1(i)(j) + pixels2(i)(j))
-  }
-
-  def writeToImage(pixels: Array[Array[RTColor]], image: RTImage): Unit = {
-    val maxPix = pixels.foldLeft(0.0)((m,row) => m max row.foldLeft(0.0)((m2, p) => m2 max p.r max p.g max p.b))
-    for (px <- 0 until image.width; py <- 0 until image.height) {
-      image.setColor(px, py, (pixels(px)(py) / maxPix * 2.0).copy(a = 1.0))
-    }
-  }
 }
