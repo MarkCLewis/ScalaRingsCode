@@ -11,26 +11,39 @@ import java.net.URL
 import data.HighVelocityCollisions
 import java.io._
 import swiftvis2.plotting._
+import data.CartAndRad
+import swiftvis2.plotting.styles.ScatterStyle
 import swiftvis2.plotting.renderer.SwingRenderer
+import java.io.File;
 
 object PreRender {
   def main(args: Array[String]): Unit = {
     val step = 10000 // what does this do??
 
-    val carURL = new URL("file:///home/mlewis/Rings/DensityWaves/CartAndRad.90500.bin") /*Keaton's file*/
-    //val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad.0.bin")
+    //val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad.100.bin")
     val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000))//, PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 2000))
     
-    val threads: Int = 24
+    val threads: Int = 6
+    val display = args.contains("-display")
     
-    //for(i <- 0 to 100) {
+      for(s <- args) {
+        val files = CartAndRad.read(new java.io.list.File(s))
+        val FileRegex(fnum) = s
+        val plot = Plot.simple(ScatterStyle(files.map(_.x), files.map(_.y), xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled))//.
+        //updatedAxis[NumericAxis]("x", na => na.copy(min = xaxisMin, max = xaxisMax, tickLabelInfo = na.tickLabelInfo.map(_.copy(numberFormat = labelFormat)))).
+        //updatedAxis[NumericAxis]("y", na => na.copy(min = yaxisMin, max = yaxisMax, tickLabelInfo = na.tickLabelInfo.map(_.copy(numberFormat = labelFormat))))
+      SwingRenderer.saveToImage(plot, "output."+("0"*(7-fnum.length))+fnum+".png", width = 1200, height = 1200)
+      if (display) {
+        SwingRenderer(plot, 1200, 1200)
+      }
+      }
       //val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad." + i*100 + ".bin")
       
       //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/CartAndRad." + step.toString + ".bin")
       //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/MesoScaleFeatures/AGUPosterRun/a=123220:q=2.8:min=15e-9:max=1.5e-8:rho=0.4:sigma=45.5/CartAndRad.4420.bin")
       //val impactURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/HighVelColls.bin")
       val rawParticles = data.CartAndRad.readStream(carURL.openStream)
-      val centerParticles = rawParticles.sortBy(_.x).slice(1000, rawParticles.length-1000) /*This code is for Keaton's giant file*/
+      val centerParticles = rawParticles.sortBy(_.x)
       val minx = centerParticles.minBy(_.x).x
       val miny = centerParticles.minBy(_.y).y
       val maxx = centerParticles.maxBy(_.x).x
@@ -39,7 +52,7 @@ object PreRender {
       val centery = (miny + maxy)/2 - 4e-5
       println(maxx-minx)
       println(maxy-miny)
-      val particles = centerParticles//.filter(p => (p.x - centerx).abs < 1e-4)// && (p.y - centery).abs < 5e-5)
+      val particles = centerParticles.filter(p => ((p.x - centerx).abs < 1e-4) && (p.y - centery).abs < 5e-5)
       // val plot = Plot.scatterPlot(
       //     particles.map(_.x - centerx), 
       //     particles.map(_.y - centery), 
@@ -84,7 +97,7 @@ object PreRender {
       val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
       val img = new rendersim.RTBufferedImage(bimg)
 
-      val viewLoc = Point(-10e-3, 10e-3, -3e-3)
+      val viewLoc = Point(-1e-3, 1e-3, -3e-3)
       val viewData = Seq(ViewData.atOriginFrom(viewLoc, 0.008, img))
 
       val totalPhotons = 1000000000L
@@ -104,4 +117,3 @@ object PreRender {
       }
     }
   }
-//}
