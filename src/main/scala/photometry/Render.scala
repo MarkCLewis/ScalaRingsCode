@@ -6,94 +6,41 @@ import java.awt.image.BufferedImage
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-//import scala.swing._
-//import ExtendedSlidingBoxSims.SimSpec
-import javax.imageio._
-import scala.swing.{MainFrame, Label, Swing, Alignment}
-import java.net.URL
 import data.HighVelocityCollisions
 import java.io._
+import scala.swing.MainFrame
+import scala.swing.Frame
 
-// Draw stuff using photometry
-object Render {
 
-  def main(args: Array[String]): Unit = {
-    val step = 10000
-
-    val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/CartAndRad.0.bin")
-    //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/CartAndRad." + step.toString + ".bin")
-//    val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/MesoScaleFeatures/AGUPosterRun/a=123220:q=2.8:min=15e-9:max=1.5e-8:rho=0.4:sigma=45.5/CartAndRad.4420.bin")
-    val impactURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/HighVelColls.bin")
-    val ringGeom = new KDTreeGeometry[BoundingBox](data.CartAndRad.readStream(carURL.openStream)
-      .filter(p => p.y < 3e-5 && p.y > -3e-5)
-      .map(p => new ScatterSphereGeom(Point(p.x, p.y, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)), 5, BoxBoundsBuilder)
-    val impacts = HighVelocityCollisions.readStream(impactURL.openStream())//.takeRight(1000)
-    println(impacts.last)
-    println(impacts.foldLeft(0)(_ + _.colls.length))
-    //val impactGeom = new KDTreeGeometry[BoundingSphere](impacts.flatMap(scd => scd.colls
-      //  .map(coll => new ScatterSphereGeom(Point(coll.p1.x, coll.p1.y, coll.p1.z), coll.p1.rad*100 min 1e-7, 
-      //  _ => new RTColor(coll.vel/5e-6 min 1.0, 0, 1.0 - coll.vel/5e-6 min 1.0, 1), _ => 0.0))))
-       
-//    val dustGeom = new DustGeom(Point(0,0,0), Vect(5e-6, 0, 0), Vect(0, 2e-5, 0), Vect(0, 0, 1e-7), 0.5/1e-6)
-    val lastStep = impacts.last.step
-    val dt = math.Pi/500
-    val dustGeom = new KDTreeGeometry[BoundingSphere](impacts.flatMap(scd => scd.colls
-       .map(coll => {
-         val mag = coll.vel*(coll.p1.rad min coll.p2.rad)
-         val size = mag*5e4
-        //  println(mag*1e14)
-         val xmult = 1.0+(lastStep - scd.step)/1000
-         val ymult = 1.0+(lastStep - scd.step)/30
-         val zmult = 2.0
-         new DustGeom(Point(coll.p1.x, coll.p1.y - 1.5*coll.p1.x*dt*(lastStep - scd.step), coll.p1.z), Vect(size*xmult, 0, 0), 
-          Vect(0, size*ymult, 0), Vect(0, 0, size*zmult), mag*1e14/(1e-6*xmult*ymult), _ => RTColor.Red)
-       })
-    ))
-
-    val geom = new ListScene(ringGeom, dustGeom) //, impactGeom)
-    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000), PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 20000))
-    val viewLoc = Point(0, 0, 3e-5)
-    val forward = Vect(0, 0, -1)
-    val up = Vect(0, 1, 0)
-    val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
-    val img = new rendersim.RTBufferedImage(bimg)
-    val threads: Int = 4
-
-    val frame = new MainFrame {
-      title = "Dust Frame"
-      contents = new Label("", Swing.Icon(bimg), Alignment.Center)
-    }
-    frame.visible = true
-
-    def parallelRender(startPixels: Array[Array[RTColor]], pass: Int): Future[Array[Array[RTColor]]] = {
-      println(pass)
+object Render {  
+  
+  def parallelRender(vds: Seq[ViewData], currentPass: Int, maxPass: Int, threads: Int, lights: List[PhotonSource], geom: ListScene, frame: Option[Frame]): Future[Seq[ViewData]] = {
+    if (currentPass < maxPass) {
+      println(currentPass)
       val futures = for(c <- 1 to threads; light <- lights) yield Future {
-        render(geom, light, viewLoc, forward, up, img)
+        render(geom, light, vds)
       }
       Future.sequence(futures).map { pixelFrames =>
-        val endPixels = pixelFrames.foldLeft(startPixels)(addPixels)
-        writeToImage(endPixels, img)
-        frame.repaint()
-        endPixels
-      }.flatMap(ep => parallelRender(ep, pass + 1))
-    }
-
-    parallelRender(Array.fill(img.width, img.height)(RTColor.Black), 0)
+        val byView = pixelFrames.transpose
+        assert(byView.length == vds.length)
+        val endViewDatas = (byView, vds).zipped.map((pixels, vd) => pixels.foldLeft(vd)(_.addPixels(_)))
+        endViewDatas.foreach(_.writeToImage())
+        frame.foreach((_.repaint()))
+        endViewDatas
+      }.flatMap(evd => parallelRender(evd, currentPass + 1, maxPass, threads, lights, geom, frame))
+    } else Future.successful(vds)
   }
 
   def render(
       geom: Geometry,
       source: PhotonSource,
-      viewLoc: Point,
-      forward: Vect, // Assume unit vector
-      up: Vect, // Assume unit vector
-      image: RTImage
-  ): Array[Array[RTColor]] = {
+      vds: Seq[ViewData]
+  ): Seq[Array[Array[RTColor]]] = {
     val interRect = geom.boundingBox
     val (xmin, xmax, ymin, ymax) =
       (interRect.min.x, interRect.max.x, interRect.min.y, interRect.max.y)
-    val right = forward.cross(up)
-    val pixels = Array.fill(image.width, image.height)(RTColor.Black)
+    val rights = vds.map(vd => vd.view.dir.cross(vd.view.up))
+    val pixelss = vds.map(vd => Array.fill(vd.image.width, vd.image.height)(RTColor.Black))
 
     for (_ <- 0L until source.numPhotons) {
       val ray = Ray(
@@ -103,35 +50,30 @@ object Render {
           ymin + math.random() * (ymax - ymin),
           0.0
         )
-      ) // Goes to random point in the plane
+      ) 
+
       val iDataOpt = geom.intersect(ray)
       iDataOpt.foreach { iData =>
         val interPoint = iData.point + iData.norm*1e-8
-        if (geom.intersect(Ray(interPoint, viewLoc)).isEmpty) {
-          val inRay = (viewLoc - interPoint).normalize
-          val scatter = iData.geom.asInstanceOf[ScatterGeometry].fractionScattered(ray.dir, inRay, iData)
-          if (scatter > 0.0) {
-            val fracForward = inRay dot forward
-            val px = ((inRay.dot(right)/fracForward / 0.707 + 1.0) * image.width / 2).toInt
-            val py = ((-inRay.dot(up)/fracForward / 0.707 + 1.0) * image.height / 2).toInt
-            if (px >= 0 && px < image.width && py >= 0 && py < image.height) {
-              pixels(px)(py) += source.light.col * iData.color * scatter
+        for ((vd, right, pixels) <- (vds, rights, pixelss).zipped) {
+          if (geom.intersect(Ray(interPoint, vd.view.loc)).isEmpty) {
+            val inRay = (vd.view.loc - interPoint).normalize
+            val scatter = iData.geom.asInstanceOf[ScatterGeometry].fractionScattered(ray.dir, inRay, iData)
+            if (scatter > 0.0) {
+              val fracForward = inRay dot vd.view.dir
+              if (fracForward < 0.0) {
+                val px = ((inRay.dot(right)/fracForward / vd.openingAngle + 1.0) * vd.image.width / 2).toInt
+                val py = ((-inRay.dot(vd.view.up)/fracForward / vd.openingAngle + 1.0) * vd.image.height / 2).toInt
+                if (px >= 0 && px < vd.image.width && py >= 0 && py < vd.image.height) {
+                  pixels(px)(py) += source.light.col * iData.color * scatter
+                }
+              }
             }
           }
         }
       }
     }
-    pixels
+    pixelss
   }
 
-  def addPixels(pixels1: Array[Array[RTColor]], pixels2: Array[Array[RTColor]]): Array[Array[RTColor]] = {
-    Array.tabulate(pixels1.length, pixels1(0).length)((i, j) => pixels1(i)(j) + pixels2(i)(j))
-  }
-
-  def writeToImage(pixels: Array[Array[RTColor]], image: RTImage): Unit = {
-    val maxPix = pixels.foldLeft(0.0)((m,row) => m max row.foldLeft(0.0)((m2, p) => m2 max p.r max p.g max p.b))
-    for (px <- 0 until image.width; py <- 0 until image.height) {
-      image.setColor(px, py, (pixels(px)(py) / maxPix * 2.0).copy(a = 1.0))
-    }
-  }
 }
