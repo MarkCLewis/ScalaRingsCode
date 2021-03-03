@@ -46,7 +46,7 @@ object FixedPathRender {
     val geom = new ListScene(ringGeom)//, dustGeom) //, impactGeom)
 
     val xyDist = 15e-3
-    val zDist = -5e-3
+    val zDist = -3e-3
     val openingAngle = 0.008
     val framesAround = 20
     val viewData = for (angInt <- 0 until framesAround) yield {
@@ -57,7 +57,7 @@ object FixedPathRender {
       ViewData.atOriginFrom(viewLoc, openingAngle, img)
     }
 
-    val totalPhotons = 1000000000L
+    val totalPhotons = 500000000L
     val maxPasses = math.ceil(totalPhotons.toDouble / (lights.map(_.numPhotons).sum * threads)).toInt
     println(s"Going $maxPasses passes.")
 
@@ -70,7 +70,7 @@ object FixedPathRender {
       contents = tabbedPane
     }
     frame.visible = true
-    val fFinalViews = Render.parallelRender(viewData, 0, 200, threads, lights, geom, Some(frame))
+    val fFinalViews = Render.parallelRender(viewData, 0, maxPasses, threads, lights, geom, Some(frame))
     fFinalViews.foreach { vds =>
       for ((vd, i) <- vds.zipWithIndex) {
         ImageIO.write(vd.image.bimg, "PNG", new java.io.File(s"photoRender.${i.formatted("%04d")}.png"))

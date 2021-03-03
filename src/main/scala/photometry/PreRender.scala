@@ -20,23 +20,12 @@ object PreRender {
   def main(args: Array[String]): Unit = {
     val step = 10000 // what does this do??
 
-    //val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad.100.bin")
+    val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad.100.bin")
     val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000))//, PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 2000))
     
     val threads: Int = 6
     val display = args.contains("-display")
     
-      for(s <- args) {
-        val files = CartAndRad.read(new java.io.list.File(s))
-        val FileRegex(fnum) = s
-        val plot = Plot.simple(ScatterStyle(files.map(_.x), files.map(_.y), xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled))//.
-        //updatedAxis[NumericAxis]("x", na => na.copy(min = xaxisMin, max = xaxisMax, tickLabelInfo = na.tickLabelInfo.map(_.copy(numberFormat = labelFormat)))).
-        //updatedAxis[NumericAxis]("y", na => na.copy(min = yaxisMin, max = yaxisMax, tickLabelInfo = na.tickLabelInfo.map(_.copy(numberFormat = labelFormat))))
-      SwingRenderer.saveToImage(plot, "output."+("0"*(7-fnum.length))+fnum+".png", width = 1200, height = 1200)
-      if (display) {
-        SwingRenderer(plot, 1200, 1200)
-      }
-      }
       //val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad." + i*100 + ".bin")
       
       //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/CartAndRad." + step.toString + ".bin")
@@ -97,7 +86,7 @@ object PreRender {
       val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
       val img = new rendersim.RTBufferedImage(bimg)
 
-      val viewLoc = Point(-1e-3, 1e-3, -3e-3)
+      val viewLoc = Point(-10e-3, 10e-3, -4e-3)
       val viewData = Seq(ViewData.atOriginFrom(viewLoc, 0.008, img))
 
       val totalPhotons = 1000000000L
@@ -109,7 +98,7 @@ object PreRender {
         contents = new Label("", Swing.Icon(bimg), Alignment.Center)
       }
       frame.visible = true
-      val fFinalViews = Render.parallelRender(viewData, 0, 200, threads, lights, geom, Some(frame))
+      val fFinalViews = Render.parallelRender(viewData, 0, maxPasses, threads, lights, geom, Some(frame))
       fFinalViews.foreach { vds =>
         for ((vd, i) <- vds.zipWithIndex) {
           ImageIO.write(vd.image.bimg, "PNG", new java.io.File(s"photoRender.${i.formatted("%04d")}.png"))
