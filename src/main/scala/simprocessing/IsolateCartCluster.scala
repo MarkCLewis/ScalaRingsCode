@@ -37,8 +37,10 @@ object IsolateCartCluster{
       }
       keep.toIndexedSeq
     }
+    println(s"Writing ${survivors.length} particles.")
     CartAndRad.write(new java.io.File(outFile), survivors)
   }
+
   def distance(part1:Particle, part2:Particle): Double = {
     val dx = part1.x - part2.x
     val dy = part1.y - part2.y

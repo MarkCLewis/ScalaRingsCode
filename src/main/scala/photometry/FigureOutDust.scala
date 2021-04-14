@@ -11,7 +11,9 @@ object FigureOutDust extends App {
   val labelFormat = "%1.3e"
   val FileRegex = """.*CartAndRad.(\d+).bin""".r
   val dataDir = new File("/home/mlewis/workspaceResearch/RegolithImpactSims/ImpactTesting/Reg/")
-  for (simDir <- dataDir.listFiles(); if simDir.isDirectory()) {
+  for (simDir <- dataDir.listFiles(); if simDir.isDirectory() && new File(simDir, "CartAndRad.0.bin").exists()) {
+    val imageDir = new File(simDir, "plots")
+    imageDir.mkdirs()
     val dataFiles = simDir.listFiles().filter(_.getName().startsWith("CartAndRad"))
     val data0 = CartAndRad.read(new File(simDir, "CartAndRad.0.bin"))
     val rad0 = data0.map(_.rad * 2)
@@ -36,6 +38,15 @@ object FigureOutDust extends App {
       val data = CartAndRad.read(file)
       val gcdata = data.map(p => GCCoord(p))
       val rads = data.map(p => if (p.rad > 5e-9) 6 else 2)
+      val phiGrad = ColorGradient(
+        -math.Pi -> RedARGB, 
+        -2*math.Pi/3 -> YellowARGB,
+        -math.Pi -> GreenARGB,
+        0.0 -> CyanARGB,
+        math.Pi/3 -> BlueARGB,
+        2*math.Pi/3 -> MagentaARGB,
+        math.Pi -> RedARGB
+      )
       val plot = Plot.stackedGridNN(Seq(Seq(
         Seq(
           scatter0,
@@ -52,7 +63,7 @@ object FigureOutDust extends App {
             (data, gcdata).zipped.flatMap((c, gc) => Array(c.x, gc.X)),
             (data, gcdata).zipped.flatMap((c, gc) => Array(c.y, gc.Y)),
             NoSymbol,
-            colors = YellowARGB,
+            colors = phiGrad(gcdata.flatMap(gc => Array(gc.phi, gc.phi))),
             lines = Some(ScatterStyle.LineData(data0.indices.flatMap(i => Array(i, i)): PlotIntSeries))
           ),
           ScatterStyle(
@@ -82,7 +93,7 @@ object FigureOutDust extends App {
       //   height = 1200
       // )
       val FileRegex(num) = file.getName()
-      SwingRenderer.saveToImage(plot, s"${simDir.getAbsolutePath()}/plotCart.${"0"*(5-num.length)+num}.png", width = 1600, height = 800)
+      SwingRenderer.saveToImage(plot, s"${imageDir.getAbsolutePath()}/plotCart.${"0"*(5-num.length)+num}.png", width = 1600, height = 800)
     }
   }
 

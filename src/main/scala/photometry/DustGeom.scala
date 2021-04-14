@@ -1,6 +1,8 @@
 package photometry
 
 import swiftvis2.raytrace._
+import data.StepCollData
+import data.CollisionData
 
 case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, density: Double,color: (Point) => RTColor) 
     extends ScatterGeometry {
@@ -77,5 +79,31 @@ case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, densit
 
   def fractionScattered(incomingDir: Vect, outgoingDir: Vect, intersectData: IntersectData): Double = {
     1.0
+  }
+}
+
+object DustGeom {
+  def buildFromCollisions(collisions: IndexedSeq[StepCollData], size: Double, renderStep: Int, stepsToMaintain: Int, dustScale: Double): Geometry = {
+    val geom = new OctreeScene(Point(0, 0, 0), size)
+    for {scd <- collisions
+      if scd.step > renderStep - stepsToMaintain && scd.step < renderStep
+      coll <- scd.colls
+    } {
+      val dust = dustFromCollision(coll, dustScale, renderStep - scd.step)
+      dust.foreach(geom.addGeom)
+    }
+    geom
+  }
+
+  def dustFromCollision(coll: CollisionData, dustScale: Double, stepsSinceCollision: Int): Seq[DustGeom] = {
+    // TODO: Put a decision tree here
+    val width = 1e-6
+    val drift = width * 1.5*stepsSinceCollision/1000.0 + 1e-8
+    val center = Point((coll.p1.x + coll.p2.x)*0.5, (coll.p1.y + coll.p2.y)*0.5, (coll.p1.y + coll.p2.y)*0.5)
+    val axis1 = Vect(width, -drift, 0)
+    val axis2 = Vect(drift, width, 0.0) / math.sqrt(drift*drift + width*width) * 1e-7
+    val axis3 = Vect(0, 0, 1e-8)
+    val spreadFactor = 1.5*stepsSinceCollision/1000.0
+    List(DustGeom(center, axis1, axis2, axis3, dustScale/spreadFactor, _ => RTColor.White))
   }
 }

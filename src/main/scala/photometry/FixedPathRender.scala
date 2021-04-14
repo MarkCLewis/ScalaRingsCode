@@ -15,7 +15,7 @@ import swiftvis2.plotting.renderer.SwingRenderer
 
 object FixedPathRender {
   def main(args: Array[String]): Unit = {
-    val carURL = new URL("file:///home/mlewis/Rings/DensityWaves/CartAndRad.90500.bin") /*Keaton's file*/
+    val carURL = new URL("file:///home/mlewis/Rings/DensityWaves/CartAndRad.1999500.bin") /*Keaton's file*/
 
     val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000))//, PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 2000))
     
@@ -46,10 +46,10 @@ object FixedPathRender {
     val geom = new ListScene(ringGeom)//, dustGeom) //, impactGeom)
 
     val xyDist = 15e-3
-    val zDist = -3e-3
+    val zDist = -4e-3
     val openingAngle = 0.008
     val framesAround = 20
-    val viewData = for (angInt <- 0 until framesAround) yield {
+    val viewData = for (angInt <- 0 until 7) yield {
       val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
       val img = new rendersim.RTBufferedImage(bimg)
       val ang = (math.Pi * 2 * angInt / framesAround)
