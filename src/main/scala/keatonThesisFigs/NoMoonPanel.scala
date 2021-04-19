@@ -44,7 +44,7 @@ object NoMoonPanel {
         for ((step, index) <- Seq(zipped(0), zipped(second-first), zipped(zipped.length-1))) {
             val yValues = step.map { col => col(1) } //these are really the radial coordinates
             val tauValues = step.map { col => col(4) }
-            panelStyles(cnt) = ScatterStyle(yValues, tauValues, symbolWidth=5, symbolHeight=5)
+            panelStyles(cnt) = ScatterStyle(yValues.map(y => kmScale(y)), tauValues, symbolWidth=5, symbolHeight=5)
             cnt += 1
         }   
         val printIndex = 100*(first)
@@ -53,11 +53,13 @@ object NoMoonPanel {
             val bottomRow = Seq()
             val styles = Seq(topRow)
             val grid = Plot.stackedGridNN(styles)
-            .updatedAxis[NumericAxis]("x", _.updatedName("Radial").numberFormat("%1.4f"))
+            .updatedAxis[NumericAxis]("x", _.updatedName("Radial Distance From Resonance [km]").numberFormat("%1.0f"))
             .updatedAxis[NumericAxis]("y", _.min(0.0).max(0.25).updatedName("Optical Depth").numberFormat("%1.4f"))
 
             val updaterGrid = if (display) Some(SwingRenderer(grid, width, height, true)) else None
             save.foreach(prefix => SwingRenderer.saveToImage(grid, prefix + s".$printIndex.png", width = width, height = height))
         }
 	}
+
+    def kmScale(v: Double): Double = (v+2.0/(3*31))*139380
 }

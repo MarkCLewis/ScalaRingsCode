@@ -1,4 +1,4 @@
-package simprocessing
+package keatonThesisFigs
 
 import data.CartAndRad
 import util.Particle
@@ -14,36 +14,42 @@ import swiftvis2.plotting.renderer.Renderer
 import swiftvis2.plotting.Plot.GridData
 import swiftvis2.plotting.renderer.SwingRenderer
 
-object CartAndRadSummary {
+object CartAndRadZoom {
 	def main(args: Array[String]): Unit = {
-        if (args.contains("-help") || (args.length != 1 && args.length != 3 && args.length != 4)) {
+        if (args.contains("-help") || (args.length != 1 && args.length != 3 && args.length != 5)) {
             println("Arguments:")
             println("The file you want to look at i.e. \\data\\lewislab\\.....\\CartAndRad.xxxxx.bin Defaults to step zero")
+            println("-rMin: the lower radial value for the zoom-in")
             println("-save name: The save name for a png plot of the particles")
-            println("thesis - add if you want to make it 1000x1000 instead of 10kx10k")
             sys.exit()
         }
         val particles = CartAndRad.read(new File(args(0)))
+        val rMin = args.sliding(2).find(_(0) == "-rMin").map(_(1).toDouble).getOrElse(-0.02163)
         val save = args.sliding(2).find(_(0) == "-save").map(_(1))
-        val thesis = args.sliding(1).find(_(0) == "thesis").map(_(0)).getOrElse("")
         val xValues = particles.map(_.x)
         val yValues = particles.map(_.y)
-        val (minx,maxx) = (-0.02163, -0.02115)//(xValues.min,xValues.max)
-        val (miny,maxy) = (yValues.min,yValues.max)
+        val (minx,maxx) = (rMin, rMin+0.00048/10)//(xValues.min,xValues.max)
+        val dy = yValues.max-yValues.min
+        val (miny,maxy) = (yValues.min+dy*0.45,yValues.min+dy*0.55)
         val pRad = particles(0).rad
-        println("Simulated Particles: " + particles.length)
+        val subset = particles.filter(p => (p.x >= minx && p.x <= maxx && p.y >= miny && p.y <= maxy))
+        
+        val xsubs = subset.map(p => kmScale(p.x))
+        val ysubs = subset.map(p => p.y)
+        println("Total Particles: " + particles.length)
         println("Particle Size (assumed uniform): " + pRad)
-        println("Min X = " + minx + " Max X = " + maxx)
+        println("Subset Particle Count: " + subset.length)
+        println("Min X = " + kmScale(minx) + " Max X = " + kmScale(maxx))
         println("Min Y = " + miny + " Max Y = " + maxy)
 
         //val (xBins, yBins) = (114,114)
         //plotParticleDistributions(particles.map(p => GCCoord(p)), xBins, yBins)
-        val width = if(thesis == "thesis") 1000 else 10000
-        val height = width
+        val width = 1000
+        val height = 1000
 
-        val style = ScatterStyle(xValues.map(x => kmScale(x)).toSeq, yValues.toSeq, symbolWidth=139380*pRad*2, symbolHeight=2*pRad, xSizing=PlotSymbol.Sizing.Scaled, ySizing=PlotSymbol.Sizing.Scaled)
+        val style = ScatterStyle(xsubs.toSeq, ysubs.toSeq, symbolWidth=139380*pRad*2, symbolHeight=2*pRad, xSizing=PlotSymbol.Sizing.Scaled, ySizing=PlotSymbol.Sizing.Scaled)//symbolWidth=2*pRad*(width/(maxx-minx)), symbolHeight=2*pRad*(height/(maxy-miny)))
         val plot = Plot.simple(style)
-            .updatedAxis[NumericAxis]("x", _.min(kmScale(minx)).max(kmScale(maxx)).updatedName("Radial Distance From Resonance [km]").numberFormat("%1.0f"))
+            .updatedAxis[NumericAxis]("x", _.min(kmScale(minx)).max(kmScale(maxx)).updatedName("Radial Distance From Resonance [km]").numberFormat("%1.0f"))//.spacing())
             .updatedAxis[NumericAxis]("y", _.min(miny).max(maxy).updatedName("Azimuthal [R0]").numberFormat("%1.5f"))
         //val updater = if (true) Some(SwingRenderer(plot, width, height, true)) else None
         save.foreach(prefix => SwingRenderer.saveToImage(plot, (prefix+".png"), width = width, height = height))
