@@ -20,10 +20,10 @@ object PreRender {
   def main(args: Array[String]): Unit = {
     val step = 10000 // what does this do??
 
-    val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad.100.bin")
-    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 100000))//, PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 2000))
+    // val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad.100.bin")
+    val lights = List(PhotonSource(PointLight(RTColor(1, 1, 1), Point(1, 0, 0.2), Set.empty), 10000))//, PhotonSource(PointLight(new RTColor(1.0, 0.8, 0.2), Point(-1e-1, 0, 1e-2)), 2000))
     
-    val threads: Int = 6
+    val threads: Int = 24
     val display = args.contains("-display")
     
       //val carURL = new URL("file:///home/lizzie/workspace/RingsResearch/v1.0E-6,oa-45,va90/CartAndRad." + i*100 + ".bin")
@@ -31,17 +31,9 @@ object PreRender {
       //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/CartAndRad." + step.toString + ".bin")
       //val carURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/MesoScaleFeatures/AGUPosterRun/a=123220:q=2.8:min=15e-9:max=1.5e-8:rho=0.4:sigma=45.5/CartAndRad.4420.bin")
       //val impactURL = new URL("http://www.cs.trinity.edu/~mlewis/Rings/AMNS-Moonlets/HighRes/Moonlet4d/HighVelColls.bin")
-      val rawParticles = data.CartAndRad.readStream(carURL.openStream)
-      val centerParticles = rawParticles.sortBy(_.x)
-      val minx = centerParticles.minBy(_.x).x
-      val miny = centerParticles.minBy(_.y).y
-      val maxx = centerParticles.maxBy(_.x).x
-      val maxy = centerParticles.maxBy(_.y).y
-      val centerx = (minx + maxx)/2 + 4e-5
-      val centery = (miny + maxy)/2 - 4e-5
-      println(maxx-minx)
-      println(maxy-miny)
-      val particles = centerParticles.filter(p => ((p.x - centerx).abs < 1e-4) && (p.y - centery).abs < 5e-5)
+      val cartFile = new File("CartAndRad.4015.bin")
+      val impactFile = new File("HighVelColls.bin")
+      val particles = data.CartAndRad.readStream(new FileInputStream(cartFile))
       // val plot = Plot.scatterPlot(
       //     particles.map(_.x - centerx), 
       //     particles.map(_.y - centery), 
@@ -52,18 +44,18 @@ object PreRender {
       // SwingRenderer(plot, 1200, 1200, true)
       //println(particles.length)
       val ringGeom = new KDTreeGeometry[BoundingBox](particles
-        .map(p => new ScatterSphereGeom(Point(p.x-centerx, p.y-centery, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)), 5, BoxBoundsBuilder)
-      println("I am carURL: " + carURL.getContent())
+        .map(p => new ScatterSphereGeom(Point(p.x, p.y, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)), 5, BoxBoundsBuilder)
         
-      /*val impacts = HighVelocityCollisions.readStream(impactURL.openStream())//.takeRight(1000)
+      val impacts = HighVelocityCollisions.readStream(new FileInputStream(impactFile))//.takeRight(1000)
+      impacts(0).colls.map(_.vel).foreach(println)
           //println(impacts.last)
           //println(impacts.foldLeft(0)(_ + _.colls.length))
-      val impactGeom = new KDTreeGeometry[BoundingSphere](impacts.flatMap(scd => scd.colls
-        .map(coll => new ScatterSphereGeom(Point(coll.p1.x, coll.p1.y, coll.p1.z), coll.p1.rad*100 min 1e-7, 
-        _ => new RTColor(coll.vel/5e-6 min 1.0, 0, 1.0 - coll.vel/5e-6 min 1.0, 1), _ => 0.0))))
-        */
+      // val impactGeom = new KDTreeGeometry[BoundingSphere](impacts.flatMap(scd => scd.colls
+      //   .map(coll => new ScatterSphereGeom(Point(coll.p1.x, coll.p1.y, coll.p1.z), coll.p1.rad*100 min 1e-7, 
+      //   _ => new RTColor(coll.vel/5e-6 min 1.0, 0, 1.0 - coll.vel/5e-6 min 1.0, 1), _ => 0.0))))
+        
       val dt = math.Pi/500   
-      //val dustGeom = new DustGeom(Point(0,0,0), Vect(5e-6, 0, 0), Vect(0, 2e-5, 0), Vect(0, 0, 1e-7), 0.5/1e-6)
+      val dustGeom = DustGeom.buildFromCollisions(impacts, 2e-5, 4015, 2000, 1e4)
 
 
       //Uncomment this to render Geometry with Dust
@@ -81,15 +73,15 @@ object PreRender {
       )) 
       */
 
-      val geom = new ListScene(ringGeom)//, dustGeom) //, impactGeom)
+      val geom = new ListScene(ringGeom, dustGeom) //, impactGeom)
 
       val bimg = new BufferedImage(1200, 1200, BufferedImage.TYPE_INT_ARGB)
       val img = new rendersim.RTBufferedImage(bimg)
 
-      val viewLoc = Point(-10e-3, 10e-3, -4e-3)
+      val viewLoc = Point(0.0, 0.0, 1.5e-3)
       val viewData = Seq(ViewData.atOriginFrom(viewLoc, 0.008, img))
 
-      val totalPhotons = 1000000000L
+      val totalPhotons = 500000000L
       val maxPasses = math.ceil(totalPhotons.toDouble / (lights.map(_.numPhotons).sum * threads)).toInt
       println(s"Going $maxPasses passes.")
 

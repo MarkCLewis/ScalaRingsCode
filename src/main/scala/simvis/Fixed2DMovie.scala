@@ -99,7 +99,7 @@ object Fixed2DMovie {
       def minIndex: Int = 0
       def maxIndex: Int = (endCol-startCol) * fixedBins(0).length
     }
-    val updater = if (display) Some(SwingRenderer(Plot(Map.empty, Map.empty, Seq.empty), width, height, true)) else None
+    val updater = if (display) Some(SwingRenderer(Plot(Map.empty, Map.empty, Map.empty), width, height, true)) else None
     if (!cart) {
       for((col, index) <- fixedBins.zipWithIndex) {
         val (startCol, endCol) = boxcar.map { bc => 
@@ -151,7 +151,7 @@ object Fixed2DMovie {
         val fixedSurface = ColoredSurfaceStyle(xValues, new BinsSeries(1, startCol, endCol), new GroupSeries(startCol, endCol), gradient(new BinsSeries(colorIndex, startCol, endCol)))
         val slicePlot = ScatterStyle(new SliceSeries(colorIndex, col), new SliceSeries(1, col), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1)))))
         val surfaceGrid = surfaceSliceGrid(fixedSurface, slicePlot, fixed.map(step => n / 1000.0).getOrElse(col.head(0)), categories(colorIndex), col.minBy(_(1)).apply(1), col.maxBy(_(1)).apply(1))
-        val cartGrid = PlotGrid(Seq(Seq(Seq(Plot2D(cnrScatter, "x", "y")))), Map("x" -> NumericAxis.defaultHorizontalAxis("x", "Radial", "%1.2e"), "y" -> NumericAxis.defaultVerticalAxis("y", "Azimuthal", "%1.2e")), Seq(1), Seq(1))
+        val cartGrid = PlotGrid(Seq(Seq(Seq(Plot2D(cnrScatter, "x", "y")))), Map("x" -> NumericAxis.defaultHorizontalAxis("Radial", "%1.2e"), "y" -> NumericAxis.defaultVerticalAxis("Azimuthal", "%1.2e")), Seq(1), Seq(1))
         val plot = Plot(Map.empty, Map("binned" -> GridData(surfaceGrid, Bounds(0, 0, 1.0, 0.33)), "cart" -> GridData(cartGrid, Bounds(0,0.33, 1.0, 0.66))))
           .updatedAxis[NumericAxis]("azimuthal", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = azimuthalNumFormat))), "binned")
           .updatedAxis[NumericAxis]("value", ax => ax.copy(tickLabelInfo = ax.tickLabelInfo.map(_.copy(numberFormat = valueNumFormat))), "binned")
@@ -168,7 +168,7 @@ object Fixed2DMovie {
     val surfaceP2D = Plot2D(fixedSurface, "azimuthal", "radial")
     val sliceP2D = Plot2D(slicePlot, "value", "radial")
     val sliceMarkerP2D = Plot2D(ScatterStyle(Array(x, x), Array(radMin, radMax), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1))))), "azimuthal", "radial")
-    PlotGrid(Seq(Seq(Seq(surfaceP2D, sliceMarkerP2D), Seq(sliceP2D))), Map("azimuthal" -> NumericAxis.defaultHorizontalAxis("azimuthal", "Azimuthal/Time"), "radial" -> NumericAxis.defaultVerticalAxis("radial", "Radial", "%1.1e"), 
+    PlotGrid(Seq(Seq(Seq(surfaceP2D, sliceMarkerP2D), Seq(sliceP2D))), Map("azimuthal" -> NumericAxis.defaultHorizontalAxis("Azimuthal/Time"), "radial" -> NumericAxis.defaultVerticalAxis("Radial", "%1.1e"), 
       "value" -> NumericAxis.defaultHorizontalAxis("value", colorName)), Array(5, 1), Array(1))
   }
 }

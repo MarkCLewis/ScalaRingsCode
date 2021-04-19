@@ -126,11 +126,11 @@ Usage: AzimuthalSamplingOccultations [flags] outputFile dir(s)
 				}
 				if (showPlots || savePlots) {
 					val font = Renderer.FontData("Ariel", Renderer.FontStyle.Plain)
-					val photonCountAxis = NumericAxis("Count", None, None, None, Axis.TickStyle.Both,
+					val photonCountAxis = NumericAxis(None, None, None, Axis.TickStyle.Both,
 						Some(Axis.LabelSettings(0.0, font, "%1.1f")), Some(Axis.NameSettings("Photon Count", font)), Axis.DisplaySide.Max)
-					val yAxes = plotStyles.zipWithIndex.map { case (_, i) => NumericAxis("Y"+i, None, None, None, Axis.TickStyle.Both,
+					val yAxes = plotStyles.zipWithIndex.map { case (_, i) => NumericAxis(None, None, None, Axis.TickStyle.Both,
 						Some(Axis.LabelSettings(0.0, font, "%1.1f")), Some(Axis.NameSettings("Azimuthal Position", font)), Axis.DisplaySide.Min) }
-					val xAxis = NumericAxis("X", None, None, None, Axis.TickStyle.Both,
+					val xAxis = NumericAxis(None, None, None, Axis.TickStyle.Both,
 						Some(Axis.LabelSettings(90.0, font, "%1.1f")), Some(Axis.NameSettings("Radial Position", font)), Axis.DisplaySide.Min)
 					val grid = PlotGrid(plotStyles.zipWithIndex.map { case ((cart, scans), i) =>
 						Seq(Plot2D(cart, "X", "Y"+i)) +: scans.map(_.map(scan => Plot2D(scan, "X", "Count"))) },

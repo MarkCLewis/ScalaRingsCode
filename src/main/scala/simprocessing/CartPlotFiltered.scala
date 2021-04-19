@@ -17,7 +17,7 @@ object CartPlotFiltered {
       println("  -display: Show a window in addition to writing to file.")
       println("  -label-format: C-style format string for axis labels.")
       println("  ? in options can be replaced by x or y.")
-      println("  Filters are applied in the ordr specified.")
+      println("  Filters are applied in the order specified.")
       println("  -?-num[-min|-max]: Drop off next argument number of particles.")
       println("  -?-frac[-min|-max]: Drop off next argument fraction of particles.")
       println("  -?-axis-(min|max): Fix the axis value as specified. Also does a filter.")
