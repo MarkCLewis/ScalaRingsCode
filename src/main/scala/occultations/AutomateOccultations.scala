@@ -20,7 +20,10 @@ object AutomateOccultations {
       MeasurementDetails("α Leo (9) I", "2005–159", 9.5, 68.0, 10.7, 114150, 204718, 6948, 46500),
       MeasurementDetails("α Leo (9) E", "2005–159", 9.5, 68.0, 98.4, 114150, 131539, 2663, 43200),
       MeasurementDetails("γ Peg (36) I", "2006–363", 20.3, 101.6, 156.6, 102296, 178178, 9939, 73000),
-      MeasurementDetails("γ Peg (36) E", "2006–363", 20.3, 101.6, 55.7, 102296, 146785, 7172, 70100))
+      MeasurementDetails("γ Peg (36) E", "2006–363", 20.3, 101.6, 55.7, 102296, 146785, 7172, 70100),
+      MeasurementDetails("β Cen (77) I", "2008–202", 66.7, 282.9, 264.4, 73333, 144893, 9481, 583000),
+      MeasurementDetails("β Cen (77) E", "2008–203", 66.7, 34.6, 54.4, 73267, 143444, 10191, 604000)
+      )
 
     if(args.length < 1) {
       println("Specify the directory above the simulation directory that you want to process.")
@@ -32,6 +35,7 @@ object AutomateOccultations {
       println("You need to specify a directory that exists.")
       sys.exit(0)
     }
+    val centerOnMedians = args.contains("-centerOnMedians")
     val DirRegex = """a=([\d.]+):q=([\d.]+):min=([\d.eE-]+):max=([\d.eE-]+):rho=([\d.]+):\w+=([\d.]+)(.*)""".r
     val FileRegex = """CartAndRad\.(\d+)\.bin""".r
     val directories = simDataDirectoryFile.list
@@ -86,7 +90,10 @@ object AutomateOccultations {
             val sorted = particles.map(_.z).sorted
             (sorted(100), sorted(sorted.length - 100))
           }
-          scans ++= multipleCuts(0, 0, phi, star.B * math.Pi/180, cutTheta, scanLength,
+          val (cx, cy) = if (!centerOnMedians) (0.0, 0.0) else {
+            particles.sortBy(_.x).apply(particles.length/2).x -> particles.sortBy(_.y).apply(particles.length/2).y
+          }
+          scans ++= multipleCuts(cx, cy, phi, star.B * math.Pi/180, cutTheta, scanLength,
             0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread).flatten
           println("Scans length = "+scans.length)
           } catch {

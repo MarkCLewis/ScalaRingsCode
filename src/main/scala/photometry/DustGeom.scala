@@ -3,7 +3,7 @@ package photometry
 import swiftvis2.raytrace._
 import data.StepCollData
 import data.CollisionData
-import swiftvis2.plotting.ColorGradient
+import swiftvis2.plotting._
 
 case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, density: Double,color: (Point) => RTColor) 
     extends ScatterGeometry {
@@ -84,12 +84,13 @@ case class DustGeom(center: Point, axis1: Vect, axis2: Vect, axis3: Vect, densit
 }
 
 object DustGeom {
-  val dustGrad = ColorGradient(0.0 -> 0xffff0000, 2.0 -> 0xff0000ff)
+  val dustGrad = ColorGradient(0.0 -> RedARGB, 1.0 -> BlueARGB, 2.0 -> GreenARGB)
   def buildFromCollisions(collisions: IndexedSeq[StepCollData], size: Double, renderStep: Int, stepsToMaintain: Int, dustScale: Double): Geometry = {
     val geom = new OctreeScene(Point(0, 0, 0), size)
     for {scd <- collisions
-      if scd.step > renderStep - stepsToMaintain && scd.step < renderStep
+      if scd.step >= renderStep - stepsToMaintain && scd.step <= renderStep
       coll <- scd.colls
+      if coll.p1.y < 1.1e-5 && coll.p1.y > -1.1e-5 // TODO: remove after testing
     } {
       val dust = dustFromCollision(coll, dustScale, renderStep - scd.step)
       // dust.foreach(println)
@@ -99,59 +100,53 @@ object DustGeom {
   }
 
   def dustFromCollision(coll: CollisionData, dustScale: Double, stepsSinceCollision: Int): Seq[Geometry] = {
-    // Consider 5x impact speed for width
-    // Off dimension "breaths"
-    // determine grazing collisions they give multiple exterior clouds.
+    val numClouds = 4
+    val vel = coll.vel min 1e-6
+    val width = vel * 2
+    val sep = (2*width) / (numClouds - 1)
+    val t = stepsSinceCollision/1000.0*2*math.Pi
+    val collx = (coll.p1.x + coll.p2.x)*0.5
+    val colly = (coll.p1.y + coll.p2.y)*0.5
+    val incl = vel / 2.0 min 2e-7
+    for (i <- 0 until numClouds) yield {
+      val gcx = collx - width + i * sep
+      val gcy = colly - 1.5 * gcx * t
+      val e = (collx - gcx).abs/2
+      val phi = (if (gcx < collx) math.Pi else 0.0) + t
+      val x = gcx - e * math.cos(phi)
+      val y = gcy + 2 * e * math.sin(phi)
+      val center = Point(x, y, 0.0)
+      val axis1 = Vect(sep/8 + sep/8*math.sin(phi)*math.sin(phi), 0, 0)
+      val axis2 = Vect(0.0, sep/8 * 1.5*t + 1e-9, 0.0)
+      val axis3 = Vect(0, 0, incl)
+      // println(s"collx=$collx, colly=$colly, incl=$incl, gcx=$gcx, gcy=$gcy, e=$e, phi=$phi, x=$x, y=$y")
+      // println(s"axis1=$axis1")
+      // println(s"axis2=$axis2")
+      val spreadFactor = 1.5*t
+      DustGeom(center, axis1, axis2, axis3, dustScale/*spreadFactor*/, _ => RTColor(dustGrad(stepsSinceCollision/1000.0)))
+    }
+
+    // Y0 = 0
+    // X0 = four groups with spacing
+    // e = X
+    // phi0 = PI if X < 0 else 0
+    // Calc x and y from above
+    // z = impact z
+    // height = i
+    // y-width = grows linear over time
+    // x-width = breathes = base + width*sin(phi), base = Delta X, width = Delta X
+  }
+
+  def dustFromCollisionOrig(coll: CollisionData, dustScale: Double, stepsSinceCollision: Int): Seq[Geometry] = {
     val width = (coll.vel max 1e-6) * 5
-    val drift = width * 1.5*stepsSinceCollision/1000.0 + 1e-7
-    val yDrift = -(coll.p1.x + coll.p2.x)*0.5 * 1.5*stepsSinceCollision/1000.0
-    val center = Point((coll.p1.x + coll.p2.x)*0.5, (coll.p1.y + coll.p2.y)*0.5 + yDrift, (coll.p1.y + coll.p2.y)*0.5)
+    val t = stepsSinceCollision/1000.0*2*math.Pi
+    val drift = width * 1.5*t + 1e-7
+    val yDrift = -(coll.p1.x + coll.p2.x)*0.5 * 1.5*t
+    val center = Point((coll.p1.x + coll.p2.x)*0.5, (coll.p1.y + coll.p2.y)*0.5 + yDrift, 0.0)
     val axis1 = Vect(width, -drift, 0)
     val axis2 = Vect(drift, width, 0.0) / math.sqrt(drift*drift + width*width) * 1e-7
     val axis3 = Vect(0, 0, 1e-8)
-    val spreadFactor = 1.5*stepsSinceCollision/1000.0
+    val spreadFactor = 1.5*t
     List(DustGeom(center, axis1, axis2, axis3, dustScale/*spreadFactor*/, _ => RTColor(dustGrad(stepsSinceCollision/1000.0))))
-    // List(GeomSphere(center, 1e-6, _ => RTColor.Red, _ => 0.0))
   }
 }
-
-/*
-// Given error rates series
-// period P - index of a sample
-// S - length of an interval containing p
-// R - threshold
-// Is there an interval of length S containing P such that all values inside are at least R
-
-def errorWindow(rates: Array[Int], p: Int, s: Int, r: Int): Boolean = {
-  var i = p-s max 0
-  var start = -1
-  while (i < p+s && i < rates.length) {
-    if (rates(i) >= r) {
-      if (start < 0) start = i
-    } else {
-      if (start >= 0) {
-        if (i - start >= s) return true
-        start = -1
-      }
-    }
-    i += 1
-  }
-  if (start < 0) false
-  else i - start >= s
-}
-                                     s           i             
-val errors = Array(5, 10, 7, 15, 0, 60, 55, 60, 60, 60, 0, 5, 5)
-errorWindow(errors, 7, 4, 12) == true
-errorWindow(errors, 3, 4, 12) == false
-
-t - weighted threshold s*r >= t, r is minimum rate in that window
-
-// Start at p-1, p+1
-def errorWindow(rates: Array[Int], p: Int, t: Int): Boolean = {
-  for (start <- p to 0 by -1; end <- p until rates.length) {
-    val min = (start to end).map(rates).min
-    if ((end - start + 1) * min >= t) return true
-  }
-  false
-}
-*/

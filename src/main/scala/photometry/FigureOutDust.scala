@@ -8,7 +8,7 @@ import java.io.File
 import util.GCCoord
 
 object FigureOutDust extends App {
-  val labelFormat = "%1.3e"
+  val labelFormat = "%1.1e"
   val FileRegex = """.*CartAndRad.(\d+).bin""".r
   val dataDir = new File("/home/mlewis/workspaceResearch/RegolithImpactSims/ImpactTesting/Reg/")
   for (simDir <- dataDir.listFiles(); if simDir.isDirectory() && new File(simDir, "CartAndRad.0.bin").exists()) {
@@ -83,8 +83,8 @@ object FigureOutDust extends App {
           )
         )
       )))
-      .updatedAxis[NumericAxis]("x", na => na.numberFormat(labelFormat))
-      .updatedAxis[NumericAxis]("y", na => na.numberFormat(labelFormat))
+      .updatedAxis[NumericAxis]("x", na => na.numberFormat(labelFormat).updatedName("Radial"))
+      .updatedAxis[NumericAxis]("y", na => na.numberFormat(labelFormat).updatedName("Azimuthal"))
       .withText("label", PlotText(simDir.getName()), Bounds(0.5, 0.05, 0.4, 0.05))
       // SwingRenderer.saveToImage(
       //   plot,

@@ -47,7 +47,7 @@ object PreRender {
         .map(p => new ScatterSphereGeom(Point(p.x, p.y, p.z), p.rad, _ => new RTColor(1, 1, 1, 1), _ => 0.0)), 5, BoxBoundsBuilder)
         
       val impacts = HighVelocityCollisions.readStream(new FileInputStream(impactFile))//.takeRight(1000)
-      impacts(0).colls.map(_.vel).foreach(println)
+      // impacts(0).colls.foreach(println)
           //println(impacts.last)
           //println(impacts.foldLeft(0)(_ + _.colls.length))
       // val impactGeom = new KDTreeGeometry[BoundingSphere](impacts.flatMap(scd => scd.colls
@@ -81,7 +81,7 @@ object PreRender {
       val viewLoc = Point(0.0, 0.0, 1.5e-3)
       val viewData = Seq(ViewData.atOriginFrom(viewLoc, 0.008, img))
 
-      val totalPhotons = 500000000L
+      val totalPhotons = 200000000L
       val maxPasses = math.ceil(totalPhotons.toDouble / (lights.map(_.numPhotons).sum * threads)).toInt
       println(s"Going $maxPasses passes.")
 

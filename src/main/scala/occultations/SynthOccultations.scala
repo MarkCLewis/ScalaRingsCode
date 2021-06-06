@@ -76,7 +76,7 @@ object SynthOccultations {
         val rx = sx + t * (ex - sx) + rrad * beamSize * math.cos(rang)
         val ry = sy + t * (ey - sy) + rrad * beamSize * math.sin(rang)
         if(rx < binData.xmin || rx > binData.xmax) println(s"Oops x! $rx, ${binData.xmin} ${binData.xmax}")
-        if(ry < binData.ymin || ry > binData.ymax) println(s"Oops y! $ry, ${binData.ymin} ${binData.ymax}")
+        if(ry < binData.ymin || ry > binData.ymax) println(s"Oops y! $ry, ${binData.ymin} ${binData.ymax} $sy + $t * ($ey - $sy) + $rrad * $beamSize * ${math.sin(rang)}")
         Photon(rx, ry, rayGridIntersect(Ray(Vect3D(rx, ry, 0), rDir), binData))
       })
       println(s"Did $photonCount photons in ${(System.nanoTime()-start)*1e-9} seconds")

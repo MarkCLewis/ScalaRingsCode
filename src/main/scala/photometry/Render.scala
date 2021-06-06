@@ -6,7 +6,6 @@ import java.awt.image.BufferedImage
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import data.HighVelocityCollisions
 import java.io._
 import scala.swing.MainFrame
 import scala.swing.Frame
