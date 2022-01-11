@@ -63,7 +63,7 @@ object OccultationGrid {
               (sorted(100), sorted(sorted.length - 100))
             }
             scans ++= multipleCuts(0, 0, phi, b * math.Pi/180, cutTheta, scanLength,
-              0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread).flatten
+              0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread, 2000).flatten
             println("Scans length = "+scans.length)
           } catch {
             case ex:java.io.IOException =>

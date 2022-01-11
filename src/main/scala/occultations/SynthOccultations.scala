@@ -27,12 +27,12 @@ object SynthOccultations {
   case class Scan(sx: Double, sy: Double, ex: Double, ey: Double, intensity: Double, photons: Seq[Photon])
 
   def multipleCuts(x: Double, y: Double, theta: Double, phi: Double, cutTheta: Double, scanLength: Double,
-    offLength: Double, beamSize: Double, height: Double, binData: BinData, photons: => Int, cutSpread: Double): Seq[Seq[Scan]] = {
+    offLength: Double, beamSize: Double, height: Double, binData: BinData, photons: => Int, cutSpread: Double, maxCount: Int): Seq[Seq[Scan]] = {
     var my = y
     while (my - cutSpread > binData.ymin) my -= cutSpread
     val ret = mutable.ArrayBuffer[Seq[Scan]]()
-    while (my < binData.ymax) {
-      println("Cut at " + my)
+    while (my < binData.ymax && ret.foldLeft(0)(_ + _.length) < maxCount) {
+      println(s"Cut at $my with ret.length = ${ret.length}")
       ret += syntheticOccultation(x, my, theta, phi, cutTheta, scanLength, offLength, beamSize, height, binData, photons)
       my += cutSpread
     }

@@ -168,7 +168,7 @@ object GraphicalInterface extends JFXApp {
       def processOccultation(): Unit = {
         so = SynthOccultations.multipleCuts(0, 0, thetaField.text.value.toDouble * math.Pi / 180, phiField.text.value.toDouble * math.Pi / 180,
           cutThetaField.text.value.toDouble * math.Pi / 180, lengthField.text.value.toDouble / 136505500, gapField.text.value.toDouble / 136505500,
-          beamWidthField.text.value.toDouble / 136505500, zmax-zmin, binData, 10000, spreadField.text.value.toDouble / 136505500)
+          beamWidthField.text.value.toDouble / 136505500, zmax-zmin, binData, 10000, spreadField.text.value.toDouble / 136505500, 2000)
         val chartData = so.indices.flatMap(i => so(i).map(sc => XYChart.Data[Number, Number](((sc.sx + sc.ex) / 2 + i * (binData.xmax - binData.xmin)) * 136505.5, sc.intensity)))
         Platform.runLater {
           occult.data = ObservableBuffer(XYChart.Series("Intensity", ObservableBuffer(chartData: _*)))

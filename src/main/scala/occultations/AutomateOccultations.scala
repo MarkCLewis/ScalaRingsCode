@@ -80,22 +80,22 @@ object AutomateOccultations {
         val scans = collection.mutable.Buffer[Scan]()
         while (scans.length < 1000 && step >= 2000 && new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin").exists()) {
           try {
-          if (!dataSets.contains(sim -> step)) {
-            val particles = data.CartAndRad.read(new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin"))
-            dataSets(sim -> step) = (particles -> binParticles(particles))
-          }
-          val (particles, binned) = dataSets(sim -> step)
-          println(s"Using step $step with ${particles.length} particles.")
-          val (zmin, zmax) = {
-            val sorted = particles.map(_.z).sorted
-            (sorted(100), sorted(sorted.length - 100))
-          }
-          val (cx, cy) = if (!centerOnMedians) (0.0, 0.0) else {
-            particles.sortBy(_.x).apply(particles.length/2).x -> particles.sortBy(_.y).apply(particles.length/2).y
-          }
-          scans ++= multipleCuts(cx, cy, phi, star.B * math.Pi/180, cutTheta, scanLength,
-            0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread).flatten
-          println("Scans length = "+scans.length)
+            if (!dataSets.contains(sim -> step)) {
+              val particles = data.CartAndRad.read(new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin"))
+              dataSets(sim -> step) = (particles -> binParticles(particles))
+            }
+            val (particles, binned) = dataSets(sim -> step)
+            println(s"Using step $step with ${particles.length} particles.")
+            val (zmin, zmax) = {
+              val sorted = particles.map(_.z).sorted
+              (sorted(100), sorted(sorted.length - 100))
+            }
+            val (cx, cy) = if (!centerOnMedians) (0.0, 0.0) else {
+              particles.sortBy(_.x).apply(particles.length/2).x -> particles.sortBy(_.y).apply(particles.length/2).y
+            }
+            scans ++= multipleCuts(cx, cy, phi, star.B * math.Pi/180, cutTheta, scanLength,
+              0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread, 2000).flatten
+            println("Scans length = "+scans.length)
           } catch {
             case ex:java.io.IOException =>
               println("Problem reading "+new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin"))
@@ -109,6 +109,7 @@ object AutomateOccultations {
         for ((scan, i) <- scans.zipWithIndex) {
           pw.println(s"$i\t${scan.photons.length}\t${scan.photons.count(!_.hit)}\t${scan.intensity}\t${scan.sx}\t${scan.sy}\t${scan.ex}\t${scan.ey}")
         }
+        pw.flush()
       }
     }
   }
