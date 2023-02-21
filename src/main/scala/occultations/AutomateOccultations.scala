@@ -9,27 +9,29 @@ import collection.JavaConverters._
 
 object AutomateOccultations {
   def main(args: Array[String]): Unit = {
-    val stars = Vector(
-      MeasurementDetails("α Vir (8) I", "2005-141", 17.2, 116.1, 150.2, 118979, 141954, 2546, 479000),
-      MeasurementDetails("α Vir (8) E", "2005–141", 17.2, 116.1, 82.2, 118979, 141704, 2535, 509000),
-      MeasurementDetails("α Vir (30) I", "2006–285", 17.2, 266.2, 219.8, 64022, 151545, 4772, 535000),
-      MeasurementDetails("α Vir (34) I", "2006–337", 17.2, 282.1, 220.9, 74536, 153654, 4061, 506000),
-      MeasurementDetails("α Vir (34) E", "2006–337", 17.2, 282.1, 344.6, 74536, 160059, 4281, 516000),
-      MeasurementDetails("α Vir (116) I", "2009–223", 17.2, 245.2, 241.9, 103059, 144566, 3764, 165000),
-      MeasurementDetails("α Vir (124) E", "2010–011", 17.2, 121.7, 124.1, 70494, 142431, 6011, 165000),
-      MeasurementDetails("α Leo (9) I", "2005–159", 9.5, 68.0, 10.7, 114150, 204718, 6948, 46500),
-      MeasurementDetails("α Leo (9) E", "2005–159", 9.5, 68.0, 98.4, 114150, 131539, 2663, 43200),
-      MeasurementDetails("γ Peg (36) I", "2006–363", 20.3, 101.6, 156.6, 102296, 178178, 9939, 73000),
-      MeasurementDetails("γ Peg (36) E", "2006–363", 20.3, 101.6, 55.7, 102296, 146785, 7172, 70100),
-      MeasurementDetails("β Cen (77) I", "2008–202", 66.7, 282.9, 264.4, 73333, 144893, 9481, 583000),
-      MeasurementDetails("β Cen (77) E", "2008–203", 66.7, 34.6, 54.4, 73267, 143444, 10191, 604000)
-      )
-
     if(args.length < 1) {
       println("Specify the directory above the simulation directory that you want to process.")
+      println("Optional Arguments:")
+      println(" -azimuthal: transposes x and y in the data so azimuthal cuts are made.")
+      println(" -starFile: delimited file of star data.")
       sys.exit(0)
     }
-    val simDataDirectory = args(0) //"/home/mlewis/Rings/JoshCDAP15-17/"
+    val (azimuthal, args2) = {
+      val (a1, a2) = args.partition(_ == "-azimuthal")
+      (a1.nonEmpty, a2)
+    }
+    val (starData, args3) = {
+      val ind = args2.indexOf("-starFile")
+      if (ind < 0) (MeasurementDetails.baseStars, args2) else {
+        val source = scala.io.Source.fromFile(args2(ind + 1))
+        val sd = source.getLines.flatMap(line => MeasurementDetails.fromCSV(line)).toVector
+        val sd2 = if (azimuthal) sd.map(md => md.copy(phiMin = 0.0, phiMax = 0.0)) else sd
+        source.close()
+        (sd2, args2.patch(ind, Nil, 2))
+      }
+    }
+    println(starData)
+    val simDataDirectory = args3(0) //"/home/mlewis/Rings/JoshCDAP15-17/"
     val simDataDirectoryFile = new File(simDataDirectory)
     if(!simDataDirectoryFile.exists()) {
       println("You need to specify a directory that exists.")
@@ -57,6 +59,8 @@ object AutomateOccultations {
       num.map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma, rest))
     }).flatten
 
+    simulations.foreach(println)
+
     // 1000 measurements per second.
     // Calculate variance for 1000 measurements
     // Check both uniform and non-uniform photon distributions
@@ -67,22 +71,25 @@ object AutomateOccultations {
     
     val pw = new PrintWriter(new File(simDataDirectoryFile, "occultations.txt"))
 
-    for (star <- stars) {
+    for (star <- starData) {
       val poissonDist = new PoissonDistribution(star.i0 / 1000)
       val cutTheta = 0.0 // Currently radial
       val phi = (star.phiMin + star.phiMax) * 0.5 * math.Pi/180 // Decide how to pick this better
       for (sim <- simulations; if sim.r0 >= star.rmin && sim.r0 <= star.rmax) {
+        println(sim)
         val beamSize = 0.01 / sim.r0
         val cutSpread = 0.3 / sim.r0
         val scanLength = (star.rmax - star.rmin) / star.duration / sim.r0 / 1000 // Length in R_0 for a millisecond
         val maxStep = sim.maxFileNum 
         var step = sim.maxFileNum
         val scans = collection.mutable.Buffer[Scan]()
-        while (scans.length < 1000 && step >= 2000 && new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin").exists()) {
+        println(s"step = $step")
+        while (scans.length < 1000 && step >= 2000 && new File(sim.dir, s"CartAndRad.$step.bin").exists()) {
           try {
             if (!dataSets.contains(sim -> step)) {
               val particles = data.CartAndRad.read(new File(sim.dir, "CartAndRad." + sim.maxFileNum + ".bin"))
-              dataSets(sim -> step) = (particles -> binParticles(particles))
+              val p2 = if (azimuthal) particles.map(p => p.copy(x = p.y, y = p.x)) else particles
+              dataSets(sim -> step) = (p2 -> binParticles(p2))
             }
             val (particles, binned) = dataSets(sim -> step)
             println(s"Using step $step with ${particles.length} particles.")

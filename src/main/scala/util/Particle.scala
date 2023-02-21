@@ -7,12 +7,15 @@ case class Particle(x: Double, y: Double, z: Double, vx: Double, vy: Double, vz:
     val dz = z - p.z
     math.sqrt(dx * dx + dy * dy + dz * dz)
   }
+
   def distSqr(p: Particle): Double = {
     val dx = x - p.x
     val dy = y - p.y
     val dz = z - p.z
     dx * dx + dy * dy + dz * dz
   }
+
+  def overlapped(p: Particle): Boolean = distSqr(p) <= (rad + p.rad) * (rad + p.rad)
 
   def advance(dt: Double): Particle = {
     GCCoord(this).advance(dt).toCart
