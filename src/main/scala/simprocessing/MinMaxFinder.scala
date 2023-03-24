@@ -276,7 +276,7 @@ object MinMaxFinder {
   //for debugging
   def printMatrix(name: String, matrix: Array[Array[Double]]): Unit = {
     println(name)
-    println(matrix.deep.mkString("\n"))
+    println(matrix.map(_.toIndexedSeq).toIndexedSeq.mkString("\n"))
   }
 
   //multiplies matrices (m x n) x (n x k)

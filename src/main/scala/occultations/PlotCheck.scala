@@ -61,7 +61,7 @@ object PlotCheck {
       scanData.flatMap(si => Array(si.sy, si.ey)), 
       symbolWidth = 1.0, symbolHeight = 1.0,
       colors = cg(scanData.flatMap(si => Array(si.frac, si.frac))),
-      lines = Some(ScatterStyle.LineData(SeqToIntSeries(scanData.flatMap(si => Array(si.index, si.index))), StrokeData(2))))
+      lines = Some(ScatterStyle.LineData(SeqToIntSeries(scanData.flatMap(si => Array(si.index, si.index)).toSeq), StrokeData(2))))
     val cartFile = dir + "/CartAndRad." + endStep + ".bin"
     val cartData = CartAndRad.read(new java.io.File(cartFile))
     val sizes = cartData.map(_.rad * 2)

@@ -11,6 +11,7 @@ import util.Vect3D
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import java.io.PrintWriter
+import scala.collection.parallel.CollectionConverters._
 
 object SynthOccultations {
   case class BinData(xmin: Double, xmax: Double, ymin: Double, ymax: Double, binSize: Double, bins: IndexedSeq[IndexedSeq[IndexedSeq[Particle]]]) {
@@ -36,7 +37,7 @@ object SynthOccultations {
       ret += syntheticOccultation(x, my, theta, phi, cutTheta, scanLength, offLength, beamSize, height, binData, photons)
       my += cutSpread
     }
-    ret
+    ret.toSeq
   }
 
   /**
@@ -70,7 +71,7 @@ object SynthOccultations {
       val pc = photonCount
       val start = System.nanoTime()
       val photons = (1 to pc).par.map(_ => {
-        val t = math.random
+        val t = math.random()
         val rang = math.Pi * 2 * math.random()
         val rrad = math.random()
         val rx = sx + t * (ex - sx) + rrad * beamSize * math.cos(rang)
@@ -83,7 +84,7 @@ object SynthOccultations {
       ret += Scan(sx, sy, ex, ey, photons.count(p => !p.hit).toDouble / pc, photons.seq)
       mx += (scanLength + offLength) * dx
     }
-    ret
+    ret.toSeq
   }
 
   def rayGridIntersect(r: Ray, binData: BinData): Boolean = {
@@ -188,7 +189,7 @@ object SynthOccultations {
     for(i <- ret.indices; j <- ret(i).indices) {
       ret(i)(j) = ret(i)(j).sortBy(_.z)
     }
-    BinData(xmin, xmax, ymin, ymax, binSize, ret)
+    BinData(xmin, xmax, ymin, ymax, binSize, ret.toIndexedSeq.map(_.toIndexedSeq.map(_.toIndexedSeq)))
   }
 
 }

@@ -15,6 +15,13 @@ case class Particle(x: Double, y: Double, z: Double, vx: Double, vy: Double, vz:
     dx * dx + dy * dy + dz * dz
   }
 
+  def distSqr(px: Double, py: Double, pz: Double): Double = {
+    val dx = x - px
+    val dy = y - py
+    val dz = z - pz
+    dx * dx + dy * dy + dz * dz
+  }
+
   def overlapped(p: Particle): Boolean = distSqr(p) <= (rad + p.rad) * (rad + p.rad)
 
   def advance(dt: Double): Particle = {

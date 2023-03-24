@@ -130,7 +130,7 @@ object AnalyzeDensityWaves {
                 }
                 println("radii now has", allRadii.length,"elements")
             }
-            val bigSlope = doPropFit(allRadii,allWavenumbers)
+            val bigSlope = doPropFit(allRadii.toSeq, allWavenumbers.toSeq)
             println("Slope on k(x) = " + bigSlope)
             println("Gives " + getLocalDensity(bigSlope))
 

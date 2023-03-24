@@ -39,7 +39,7 @@ object DensityWavelengthCalculator {
             val (slope, intercept) = doLinearFit(radialValues.map(r => SIGMA/(R0-r)), lambdaValues)
             //val slope = doPropFit(radialValues.map(r => 1/(R0-r)), lambdaValues)
             val (start, end) = (radialValues(0), radialValues(radialValues.length-1))
-            val fitX = (start to end by (end-start)/20).toSeq
+            val fitX = (0 to 20).map(i => start + i * (end - start) / 20.0) // (start to end by (end-start)/20).toSeq
             val fitY = fitX.map(x => slope*(SIGMA/(R0-x)) + intercept)
             //val fitY = fitX.map(x => slope*(1/(R0-x)))
 

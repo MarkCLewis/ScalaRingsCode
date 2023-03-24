@@ -96,11 +96,11 @@ object CartAndRadSummary {
             val binsY = (0 until histBins).map(index => ys.min + (ys.max-ys.min)*index/histBins)
             val es = particles.map(p => p.e)
             val binsE = (0 until histBins).map(index => es.min + (es.max-es.min)*index/histBins)
-            val phis = mapAngles(particles.map(p => p.phi))
+            val phis = mapAngles(particles.map(p => p.phi).toSeq)
             val binsPhi = (0 until histBins).map(index => phis.min + (phis.max-phis.min)*index/histBins)
             val is = particles.map(p => p.i)
             val binsI = (0 until histBins).map(index => is.min + (is.max-is.min)*index/histBins)
-            val zetas = mapAngles(particles.map(p => p.zeta))
+            val zetas = mapAngles(particles.map(p => p.zeta).toSeq)
             val binsZeta = (0 until histBins).map(index => zetas.min + (zetas.max-zetas.min)*index/histBins)
 
             val pxSize = 1000

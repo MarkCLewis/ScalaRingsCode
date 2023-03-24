@@ -36,5 +36,5 @@ class ParticleGrid(data: IndexedSeq[Particle]) {
   println(s"Total sum $cnt")
 
   val sortedCells = (for (i <- _cells.indices; j <- _cells(i).indices) yield (i, j, _cells(i)(j).length)).sortBy(-_._3)
-  def cellIndices(i: Int, j: Int): Seq[Int] = if (i >= 0 && i < _cells.length && j >= 0 && j < _cells(i).length) _cells(i)(j) else Nil
+  def cellIndices(i: Int, j: Int): mutable.Buffer[Int] = if (i >= 0 && i < _cells.length && j >= 0 && j < _cells(i).length) _cells(i)(j) else mutable.Buffer.empty[Int]
 }

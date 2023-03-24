@@ -177,7 +177,7 @@ object PreparePWPSMod {
                 }
             }
             //return the modified particles
-            CartAndRad.write(new File(dir, "CartAndRadMod."+step+".bin"), finalParticles)
+            CartAndRad.write(new File(dir, "CartAndRadMod."+step+".bin"), finalParticles.toIndexedSeq)
         }
     }
 
@@ -233,7 +233,7 @@ object PreparePWPSMod {
         }
         grid
     }
-    def mapAngles(oldAngles: Seq[Double]): Seq[Double] = {
+    def mapAngles(oldAngles: mutable.IndexedSeq[Double]): mutable.IndexedSeq[Double] = {
         if(oldAngles.length > 0){
             val newAngles = Array.ofDim[Double](oldAngles.length)
             val first = oldAngles(0)
@@ -396,7 +396,7 @@ object PreparePWPSMod {
         return (distSqr < (p1.rad + p2.rad)*(p1.rad + p2.rad))
     }
 
-    def meanAndStdev(set: Seq[Double]): (Double, Double) = {
+    def meanAndStdev(set: mutable.IndexedSeq[Double]): (Double, Double) = {
         val mean = set.sum/set.length
         val stdev = math.sqrt(set.map(x => math.pow(x-mean,2)).sum/set.length)
         (mean, stdev)

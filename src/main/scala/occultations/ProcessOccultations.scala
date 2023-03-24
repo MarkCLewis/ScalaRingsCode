@@ -13,7 +13,7 @@ object ProcessOccultations extends App {
   val DataPointRegex = """(\d+)\s+(\d+)\s+(\d+)\s+([\d.e-]+)""".r
 
   val source = scala.io.Source.fromFile(args(0))
-  val data = readData(source.getLines)
+  val data = readData(source.getLines())
   source.close
   
   // Calculate stuff with the data
@@ -21,8 +21,8 @@ object ProcessOccultations extends App {
 
   def readData(lines: Iterator[String]): Seq[OccultationData] = {
     val ret = collection.mutable.Buffer[OccultationData]()
-    var curMeasure = MeasurementDetails(lines.next).get
-    var curSim = Simulation(lines.next).get
+    var curMeasure = MeasurementDetails(lines.next()).get
+    var curSim = Simulation(lines.next()).get
     var curScan = List[DataPoint]()
     for (line <- lines) {
       line match {
@@ -38,6 +38,6 @@ object ProcessOccultations extends App {
       }
     }
     ret += OccultationData(curMeasure, curSim, curScan)
-    ret
+    ret.toSeq
   }
 }

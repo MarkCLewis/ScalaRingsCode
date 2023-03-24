@@ -1,5 +1,6 @@
 package data
 
+import scala.collection.parallel.CollectionConverters._
 import util.Particle
 
 /**
