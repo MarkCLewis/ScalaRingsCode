@@ -8,6 +8,7 @@ import swiftvis2.plotting.Plot
 import swiftvis2.plotting._
 import swiftvis2.plotting.renderer.SwingRenderer
 import swiftvis2.plotting.styles.ScatterStyle
+import java.io.PrintWriter
 
 object MoonletTracker {
   val MinParticlesInCoreGridCell = 100
@@ -19,6 +20,7 @@ object MoonletTracker {
   def main(args: Array[String]): Unit = {
     val dir = new File(args(0))
     val dirFiles = CartAndRad.findAllInDir(dir).sortBy((_._2))
+    val pw = new PrintWriter("coreData.txt")
     var lastCores = mutable.Map[Int, Int]()
     for ((stepFile, step) <- dirFiles) {
       println(s"Step $step")
@@ -26,12 +28,17 @@ object MoonletTracker {
       println(s"Find moonlets, count = ${stepData.length}")
       val (moonlets, cores) = locateMoonletsAndCores(stepData, lastCores)
       println(cores)
+      for (key <- cores.keys) {
+        pw.println(s"$step, $key, ${cores(key)}, ${moonlets(key).length}")
+        pw.flush()
+      }
       if (moonlets.nonEmpty) {
         val plot = completeStepPlot(stepData, moonlets, cores, stepFile)
         SwingRenderer.saveToImage(plot, s"moonlets.$step.png", "PNG", 1800, 1200)
       }
       lastCores = cores
     }
+    pw.close()
   }
 
   def moonletScatter(data: IndexedSeq[Particle], moonlet: mutable.Buffer[Int], core: Int, color: Int, view: Double = 0.0): ScatterStyle = {
@@ -136,7 +143,7 @@ object MoonletTracker {
       val style = moonletScatter(data, moonlet, core, MoonletColors(key % MoonletColors.length), 2e-4)
       val grid = PlotGrid.oneByOne("x", Axis.ScaleStyle.Linear, "y", Axis.ScaleStyle.Linear, style)
       val gridData = Plot.GridData(grid, Bounds(plotGridX * width, headerHeight + plotGridY * height, width, height))
-      val textData = Plot.TextData(PlotText(key.toString), Bounds(plotGridX * width, headerHeight + plotGridY * height, width*0.1, height*0.1))
+      val textData = Plot.TextData(PlotText(key.toString), Bounds(plotGridX * width, headerHeight + plotGridY * height, width*0.2, height*0.1))
       i.toString -> (gridData, textData)
     }).toMap
     val grids = gridsAndText.map { case (key, (grid, _)) => key -> grid }
