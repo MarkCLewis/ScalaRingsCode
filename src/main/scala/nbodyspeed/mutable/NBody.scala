@@ -6,8 +6,8 @@ class Particle(val pos: Vect3D, val vel: Vect3D, val mass: Double)
 object NBody extends App {
   val NumBodies = 1000
   val dt = 1e-9
-  val bodies = Array.fill(NumBodies)(new Particle(new Vect3D(math.random, math.random, math.random),
-    new Vect3D(math.random, math.random, math.random), 1e-10))
+  val bodies = Array.fill(NumBodies)(new Particle(new Vect3D(math.random(), math.random(), math.random()),
+    new Vect3D(math.random(), math.random(), math.random()), 1e-10))
   val accel = Array.fill(NumBodies)(new Vect3D(0, 0, 0))
 
   def calcAccelFor(): Unit = {

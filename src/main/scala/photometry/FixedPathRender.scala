@@ -73,7 +73,7 @@ object FixedPathRender {
     val fFinalViews = Render.parallelRender(viewData, 0, maxPasses, threads, lights, geom, Some(frame))
     fFinalViews.foreach { vds =>
       for ((vd, i) <- vds.zipWithIndex) {
-        ImageIO.write(vd.image.bimg, "PNG", new java.io.File(s"photoRender.${i.formatted("%04d")}.png"))
+        ImageIO.write(vd.image.bimg, "PNG", new java.io.File(s"photoRender.${"%04d".format(i)}.png"))
       }
     }
   }

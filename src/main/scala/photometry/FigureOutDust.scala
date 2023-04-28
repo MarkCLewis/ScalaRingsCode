@@ -60,8 +60,8 @@ object FigureOutDust extends App {
         ),
         Seq(
           ScatterStyle(
-            (data, gcdata).zipped.flatMap((c, gc) => Array(c.x, gc.X)),
-            (data, gcdata).zipped.flatMap((c, gc) => Array(c.y, gc.Y)),
+            data.lazyZip(gcdata).flatMap((c, gc) => Array(c.x, gc.X)),
+            data.lazyZip(gcdata).flatMap((c, gc) => Array(c.y, gc.Y)),
             NoSymbol,
             colors = phiGrad(gcdata.flatMap(gc => Array(gc.phi, gc.phi))),
             lines = Some(ScatterStyle.LineData(data0.indices.flatMap(i => Array(i, i)): PlotIntSeries))
