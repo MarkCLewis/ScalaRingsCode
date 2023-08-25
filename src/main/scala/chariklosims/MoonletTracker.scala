@@ -15,7 +15,6 @@ case class IndexAndStep(index: Int, lostSteps: Int)
 object MoonletTracker {
   val MinParticlesInCoreGridCell = 100
   val MinParticleInMoonlet = 2000
-  val AcceptableVelocityFactorBuild = 0.9
   val AcceptableVelocityFactorThin = 0.8
   val StepsToKeep = 10
   val CentralMass = 5e18
@@ -53,7 +52,7 @@ object MoonletTracker {
     pw.close()
   }
 
-  def moonletScatter(data: IndexedSeq[Particle], moonlet: mutable.Buffer[Int], core: Int, color: Int, view: Double = 0.0): ScatterStyle = {
+  def moonletScatter(data: IndexedSeq[Particle], moonlet: mutable.Buffer[Int], core: Int, color: Int, view: Double = 0.0, defaultPartColor: Int = 0x10000000): ScatterStyle = {
     val parts = if (view == 0.0) {
       moonlet.map(data).sortBy(_.z)
     } else {
@@ -67,12 +66,12 @@ object MoonletTracker {
     val y = parts.map(_.y)
     val diams = parts.map(_.rad * 2)
     val colors = parts.indices.map { i =>
-      if (i < moonlet.length) color else 0x10000000
+      if (i < moonlet.length) color else defaultPartColor
     }
     ScatterStyle(x, y, symbolWidth = diams, symbolHeight = diams, colors = colors, xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
   }
 
-  def filteredColorMoonletScatter(data: IndexedSeq[Particle], moonlets: mutable.Map[Int, mutable.Buffer[Int]], cores: mutable.Map[Int, IndexAndStep]): ScatterStyle = {
+  def filteredColorMoonletScatter(data: IndexedSeq[Particle], moonlets: mutable.Map[Int, mutable.Buffer[Int]], cores: mutable.Map[Int, IndexAndStep], palette: IndexedSeq[Int] = MoonletColors): ScatterStyle = {
     val xminMoonlets = if(moonlets.isEmpty) {
       cores.map { case (mi, IndexAndStep(pi, s)) => data(pi).x }.min
     } else moonlets.map(_._2.minBy(i => data(i).x)).map(i => data(i).x).min
@@ -92,20 +91,8 @@ object MoonletTracker {
     val diams = filteredData.map(_._1.rad * 2)
     val filteredDataMap = filteredData.zipWithIndex.map{ case ((p, oi), ni) => (oi, ni) }.toMap
     val moonletMap = mutable.Map[Int, Int]().withDefaultValue(BlackARGB)
-    for (mi <- moonlets.keys; pi <- moonlets(mi); if filteredDataMap.contains(pi)) moonletMap(filteredDataMap(pi)) = MoonletColors(mi % MoonletColors.length)
+    for (mi <- moonlets.keys; pi <- moonlets(mi); if filteredDataMap.contains(pi)) moonletMap(filteredDataMap(pi)) = palette(mi % palette.length)
     ScatterStyle(x, y, symbolWidth = diams, symbolHeight = diams, colors = moonletMap, xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
-  }
-
-  def plotMoonlets(data: IndexedSeq[Particle], moonlets: mutable.Map[Int, mutable.Buffer[Int]], cores: mutable.Map[Int, IndexAndStep], title: String): Unit = {
-    val x = data.map(_.x)
-    val y = data.map(_.y)
-    val diams = data.map(_.rad * 2)
-    val colorGrad = ColorGradient(0.0 -> BlackARGB, 0.5 -> GreenARGB, 1.25 -> YellowARGB, 1.5 -> RedARGB)
-    val moonletMap = mutable.Map[Int, Int]().withDefaultValue(BlackARGB)
-    for (mi <- moonlets.keys; pi <- moonlets(mi)) moonletMap(pi) = colorGrad(shearRatio(data(pi), data(cores(mi).index)))
-    val plot = Plot.scatterPlot(x, y, title, "Radial", "Azimuthal", diams, symbolColor = moonletMap, xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
-      .updatedAxis[NumericAxis]("x", a => a.updatedNumberFormat("%1.3f"))
-    SwingRenderer(plot, 1200, 1200, true)
   }
 
   def plotMoonlet(data: IndexedSeq[Particle], moonlet: mutable.Buffer[Int], core: Int, title: String): Unit = {
@@ -146,8 +133,8 @@ object MoonletTracker {
   def completeStepPlot(data: IndexedSeq[Particle], moonlets: mutable.Map[Int, mutable.Buffer[Int]], cores: mutable.Map[Int, IndexAndStep], title: String): Plot = {
     val headerHeight = 0.05
     val fullPlotWidth = 0.2
-    val defaultCols = 8
-    val defaultRows = 7
+    val defaultCols = 1
+    val defaultRows = 1
     val (numCols, numRows) = if (cores.size <= defaultRows * defaultCols) (defaultCols, defaultRows) else {
       val sqrt = math.sqrt(cores.size).toInt
       (sqrt, sqrt + 1)
@@ -184,16 +171,13 @@ object MoonletTracker {
 
     val cores = coreParticles(data, moonlets)
 
-    val thinnedMoonlets = moonlets // thinMoonlets(data, moonlets, cores)
-    val thinnedCores = cores // coreParticles(data,thinnedMoonlets)
-
     val moonletSet = mutable.Set[Int]()
-    for (mi <- thinnedMoonlets.keys; pi <- thinnedMoonlets(mi)) moonletSet += pi
+    for (mi <- moonlets.keys; pi <- moonlets(mi)) moonletSet += pi
     for ((mi, IndexAndStep(pi, cnt)) <- lastCores; if !moonletSet(pi) && cnt < StepsToKeep) {
-      thinnedCores(mi) = IndexAndStep(pi, cnt + 1)
+      cores(mi) = IndexAndStep(pi, cnt + 1)
     }
 
-    (thinnedMoonlets, thinnedCores)
+    (moonlets, cores)
   }
 
   def radialVelocity(core: Particle, p: Particle): Double = {
@@ -207,23 +191,14 @@ object MoonletTracker {
     (dx * dvx + dy * dvy + dz * dvz) / (dmag * (core.rad max p.rad))
   }
 
-  def shearRatio(core: Particle, p: Particle): Double = {
-    val dvy = (core.vy - p.vy).abs
-    val dx = (core.x - p.x).abs
-    dvy / (1.5 * dx)
-  }
-
   def acceptToGroup(core: Particle, p: Particle, threshold: Double): Boolean = {
-    // val dvy = (core.vy - p.vy).abs
-    // val dx = (core.x - p.x).abs
-    // dvy < threshold * 1.5 * (dx max (core.rad + p.rad))
     radialVelocity(core, p) < threshold
   }
 
   def workOutGrid(data: IndexedSeq[Particle], pi: Int, cx: Int, cy: Int, group: Array[Int], grid: ParticleGrid, useThreshold: Boolean): mutable.Buffer[Int] = {
     var offset = 0
     var done = false
-    val included = mutable.Buffer(pi) // This could be a better data structure
+    val included = new OverlapFinder(data, pi) // This could be a better data structure
     group(pi) = pi
     val mass = particleMass(data(pi).rad)
     var cmx = data(pi).x * mass
@@ -242,11 +217,10 @@ object MoonletTracker {
         if group(ni) < 0
       } {
         // Need a spatial data structure that grows well here so I can quickly find the nearest particle in the set to the new one being tested.
-        // if (included.exists(inc => data(ni).overlapped(data(inc))) && (!useThreshold || acceptToGroup(data(pi), data(ni), AcceptableVelocityFactorBuild))) {
         if (isGravitationallyBound(data(ni), cmx/cmass, cmy/cmass, cmz/cmass, cmvx/cmass, cmvy/cmass, cmvz/cmass, cmass)
-            && included.exists(inc => data(ni).overlapped(data(inc)))) {
+            && included.checkParticle(ni)) {
           group(ni) = pi
-          included += ni
+          included.addParticle(ni)
           val mass = particleMass(data(pi).rad)
           cmass += mass
           cmx += data(ni).x * mass
@@ -261,7 +235,7 @@ object MoonletTracker {
       offset += 1
     }
     // println(s"Offset = $offset at the end.")
-    included
+    included.parts
   }
 
   def findMoonlets(data: IndexedSeq[Particle], grid: ParticleGrid, lastCores: mutable.Map[Int, IndexAndStep]): mutable.Map[Int, mutable.Buffer[Int]] = {
@@ -320,14 +294,6 @@ object MoonletTracker {
       val newCore = findCMParticle(data, moonlet)
       i -> IndexAndStep(newCore, 0)
     }
-  }
-
-  def thinMoonlets(data: IndexedSeq[Particle], moonlets: mutable.Map[Int, mutable.Buffer[Int]], cores: mutable.Map[Int, IndexAndStep]): mutable.Map[Int, mutable.Buffer[Int]] = {
-    (for ((mi, moonlet) <- moonlets) yield {
-      mi -> moonlet.filter { i =>
-          (i == cores(mi).index) || acceptToGroup(data(cores(mi).index), data(i), AcceptableVelocityFactorThin)
-      }
-    }).filter(_._2.length > MinParticleInMoonlet)
   }
 
   def particleMass(rad: Double): Double = ParticleDensityFactor * rad * rad * rad

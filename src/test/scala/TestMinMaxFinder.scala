@@ -1,9 +1,9 @@
 import org.scalatest._
 //import src.main.scala.simprocessing.MinMaxFinder.scala
 
-class TestMinMaxFinder extends FlatSpec with Matchers {
-  val x = (-0.9 to 10.2 by 0.1).toSeq
-  val window = 5
+class TestMinMaxFinder {}//extends FlatSpec with Matchers {
+  // val x = (-0.9 to 10.2 by 0.1).toSeq
+  // val window = 5
   
   // "MinMaxFinder" should "return 0,2,4,6,8,10,... when called on cos(pi*x/2)" in {
   //   val y = x.map(z => math.cos(z*math.Pi/2))
@@ -50,4 +50,4 @@ class TestMinMaxFinder extends FlatSpec with Matchers {
   //   res(2) shouldBe (5.309 +- 0.01)
   // }
   
-}
+// }

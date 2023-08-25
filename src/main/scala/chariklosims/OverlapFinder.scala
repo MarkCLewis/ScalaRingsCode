@@ -6,7 +6,7 @@ import scalafx.scene.input.KeyCode
 
 class OverlapFinder(data: IndexedSeq[Particle], firstIndex: Int) {
   private val MinGridCount = 20
-  private val parts = mutable.Buffer(firstIndex)
+  val parts = mutable.Buffer(firstIndex)
   private var grid: mutable.Map[Int, mutable.Map[Int, List[Int]]] = null
   private var gridCellSize = -1.0
 
@@ -20,6 +20,29 @@ class OverlapFinder(data: IndexedSeq[Particle], firstIndex: Int) {
           data(i).overlapped(data(pi))
         }
       }}
+    }
+  }
+
+  def closestNeighbor(i: Int): Int = {
+    if (grid == null) {
+      parts.minBy(inc => data(i).distance(data(inc)))
+    } else {
+      val gx = ((data(i).x - data(firstIndex).x) / gridCellSize).toInt
+      val gy = ((data(i).y - data(firstIndex).y) / gridCellSize).toInt
+      var minDist = Double.MaxValue
+      var minIndex = -1
+      for (dgx <- -1 to 1; dgy <- -1 to 1) {
+        if (grid.contains(gx + dgx)) {
+          for (pi <- grid(gx + dgx)(gy + dgy); if pi != i) {
+            val dist = data(i).distance(data(pi))
+            if (dist < minDist) {
+              minDist = dist
+              minIndex = pi
+            }
+          }
+        }
+      }
+      minIndex
     }
   }
 
