@@ -24,6 +24,8 @@ case class Particle(x: Double, y: Double, z: Double, vx: Double, vy: Double, vz:
 
   def overlapped(p: Particle): Boolean = distSqr(p) <= (rad + p.rad) * (rad + p.rad)
 
+  def overlapped(p: Particle, tolerance: Double): Boolean = distSqr(p) <= (rad + p.rad) * (rad + p.rad) * tolerance * tolerance
+
   def advance(dt: Double): Particle = {
     GCCoord(this).advance(dt).toCart
   }

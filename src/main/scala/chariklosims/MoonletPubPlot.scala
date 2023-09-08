@@ -11,23 +11,23 @@ import swiftvis2.plotting.renderer.SwingRenderer
 object MoonletPubPlot {
   val MoonletColors = IndexedSeq(0xFFE69F00, 0xFF56B4E9, 0xFF009E73, 0xFFF0E442, 0xFF0072B2, 0xFFD55E00, 0xFFCC79A7)
 
-  def hardSpherePlot1(): (String, Int, mutable.Map[Int, IndexAndStep], Int, Int) = {
+  def hardSpherePlot1(): (String, Int, mutable.Map[Int, IndexAndStep], Int, Int, Double) = {
     val cartDirectory = "/home/mlewis/Rings/CentaurRings/Chariklo/InnerRing-grav-rho0.5-tau0.1-hard/"
     val stepNum = 32480
     val cores = mutable.Map(0 -> IndexAndStep(221293, 0), 1 -> IndexAndStep(1522795, 0))
-    (cartDirectory, stepNum, cores, 2857, 4000)
+    (cartDirectory, stepNum, cores, 2857, 4000, 1.02)
   }
-  def softSpherePlot1(): (String, Int, mutable.Map[Int, IndexAndStep], Int, Int) = {
+  def softSpherePlot1(): (String, Int, mutable.Map[Int, IndexAndStep], Int, Int, Double) = {
     val cartDirectory = "/data/mlewis/Rings/CentaurRings/Chariklo/InnerRing-grav-rho0.5-tau0.1/"
     val stepNum = 270800
     val cores = Seq(222457, 396777, 541902, 1960864, 2276304, 307963, 2279675, 2158304, 315757)
-    (cartDirectory, stepNum, mutable.Map(cores.indices.map { i => i -> IndexAndStep(cores(i), 0) }:_*), 5200, 4000)
+    (cartDirectory, stepNum, mutable.Map(cores.indices.map { i => i -> IndexAndStep(cores(i), 0) }:_*), 5200, 4000, 1.0)
   }
-  def softSpherePlot2(): (String, Int, mutable.Map[Int, IndexAndStep], Int, Int) = {
+  def softSpherePlot2(): (String, Int, mutable.Map[Int, IndexAndStep], Int, Int, Double) = {
     val cartDirectory = "/data/mlewis/Rings/CentaurRings/Chariklo/InnerRing-grav-rho0.5-tau0.1/"
     val stepNum = 310600
     val cores = Seq(2123769, 349732, 1067593, 2319368, 238115, 737951, 2115689, 2263152, 343257)
-    (cartDirectory, stepNum, mutable.Map(cores.indices.map { i => i -> IndexAndStep(cores(i), 0) }:_*), 5200, 4000)
+    (cartDirectory, stepNum, mutable.Map(cores.indices.map { i => i -> IndexAndStep(cores(i), 0) }:_*), 5200, 4000, 1.0)
   }
 
 
@@ -38,7 +38,7 @@ object MoonletPubPlot {
       softSpherePlot2 _
     )
     for (func <- defFuncs) {
-      val (cartDirectory, stepNum, lastCores, width, height) = func()
+      val (cartDirectory, stepNum, lastCores, width, height, tolerance) = func()
 
       val cartData = CartAndRad.read(new File(s"$cartDirectory/CartAndRad.$stepNum.bin"))
       val miny = cartData.minBy(_.y).y
@@ -54,13 +54,13 @@ object MoonletPubPlot {
         val rad = cd.rad * 335
         Particle(x, y, z, vx, vy, vz, rad)
       }
-      val (allMoonlets, allCores) = MoonletTracker.locateMoonletsAndCores(data, lastCores)
+      val (allMoonlets, allCores) = MoonletTracker.locateMoonletsAndCores(data, lastCores, tolerance)
       val moonlets = lastCores.map { case (core, _) => core -> allMoonlets(core) }
       val cores = lastCores.map { case (core, _) => core -> allCores(core) }
       // val plot = completeStepPlot(data, moonlets, cores)
       // SwingRenderer.saveToImage(plot, s"pub-moonlets.$stepNum.png", "PNG", width, height)
 
-      val sepsMap = minSeparations(data, moonlets, cores)
+      val sepsMap = minSeparations(data, moonlets, cores, tolerance)
       val bins = (0 to 100).map(i => 0.01 * i)
       for ((key, seps) <- sepsMap) {
         val fracSeps = seps.map(_._2)
@@ -69,10 +69,10 @@ object MoonletPubPlot {
     }
   }
 
-  def minSeparations(data: IndexedSeq[Particle], moonlets: mutable.Map[Int, mutable.Buffer[Int]], cores: mutable.Map[Int, IndexAndStep]): Map[Int, Seq[(Double, Double)]] = {
+  def minSeparations(data: IndexedSeq[Particle], moonlets: mutable.Map[Int, mutable.Buffer[Int]], cores: mutable.Map[Int, IndexAndStep], tolerance: Double): Map[Int, Seq[(Double, Double)]] = {
     (for (key <- moonlets.keys) yield {
       val core = cores(key).index
-      val overlap = new OverlapFinder(data, core)
+      val overlap = new OverlapFinder(data, core, tolerance)
       for (i <- moonlets(key)) {
         if (i != core) overlap.addParticle(i)
       }

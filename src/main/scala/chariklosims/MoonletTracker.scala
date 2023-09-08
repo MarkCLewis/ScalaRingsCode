@@ -25,6 +25,7 @@ object MoonletTracker {
 
   def main(args: Array[String]): Unit = {
     val dir = new File(args(0))
+    val tolerance = args(1).toDouble
     val dirFiles = CartAndRad.findAllInDir(dir).sortBy((_._2))
     val pw = new PrintWriter("coreData.txt")
     var lastCores = mutable.Map[Int, IndexAndStep]()
@@ -35,7 +36,7 @@ object MoonletTracker {
         println(s"Reading $stepFile gave zero particles.")
       } else {
         println(s"Find moonlets, count = ${stepData.length}")
-        val (moonlets, cores) = locateMoonletsAndCores(stepData, lastCores)
+        val (moonlets, cores) = locateMoonletsAndCores(stepData, lastCores, tolerance)
         println(cores)
         for (key <- cores.keys) {
           val moonletSize = if(moonlets.contains(key)) moonlets(key).length else 0
@@ -162,11 +163,11 @@ object MoonletTracker {
     Plot(texts + ("title" -> Plot.TextData(PlotText(title), Bounds(0, 0, 1.0, headerHeight))), grids + ("full" -> fullGridData))
   }
 
-  def locateMoonletsAndCores(data: IndexedSeq[Particle], lastCores: mutable.Map[Int, IndexAndStep]): (mutable.Map[Int, mutable.Buffer[Int]], mutable.Map[Int, IndexAndStep]) = {
+  def locateMoonletsAndCores(data: IndexedSeq[Particle], lastCores: mutable.Map[Int, IndexAndStep], tolerance: Double): (mutable.Map[Int, mutable.Buffer[Int]], mutable.Map[Int, IndexAndStep]) = {
     // Build grid
     val grid = new ParticleGrid(data)
 
-    val moonlets = findMoonlets(data, grid, lastCores)
+    val moonlets = findMoonlets(data, grid, lastCores, tolerance)
     println(s"There are ${moonlets.size} moonlets.")
 
     val cores = coreParticles(data, moonlets)
@@ -195,10 +196,10 @@ object MoonletTracker {
     radialVelocity(core, p) < threshold
   }
 
-  def workOutGrid(data: IndexedSeq[Particle], pi: Int, cx: Int, cy: Int, group: Array[Int], grid: ParticleGrid, useThreshold: Boolean): mutable.Buffer[Int] = {
+  def workOutGrid(data: IndexedSeq[Particle], pi: Int, cx: Int, cy: Int, group: Array[Int], grid: ParticleGrid, useThreshold: Boolean, tolerance: Double): mutable.Buffer[Int] = {
     var offset = 0
     var done = false
-    val included = new OverlapFinder(data, pi) // This could be a better data structure
+    val included = new OverlapFinder(data, pi, tolerance) // This could be a better data structure
     group(pi) = pi
     val mass = particleMass(data(pi).rad)
     var cmx = data(pi).x * mass
@@ -238,7 +239,7 @@ object MoonletTracker {
     included.parts
   }
 
-  def findMoonlets(data: IndexedSeq[Particle], grid: ParticleGrid, lastCores: mutable.Map[Int, IndexAndStep]): mutable.Map[Int, mutable.Buffer[Int]] = {
+  def findMoonlets(data: IndexedSeq[Particle], grid: ParticleGrid, lastCores: mutable.Map[Int, IndexAndStep], tolerance: Double): mutable.Map[Int, mutable.Buffer[Int]] = {
     val group = Array.fill(data.length)(-1)
     val moonlets = mutable.Map[Int, mutable.Buffer[Int]]()
     // Run through previous cores
@@ -247,7 +248,7 @@ object MoonletTracker {
       val cy = grid.yCell(data(pi).y)
 
       // println(s"Moonlet core $cx, $cy, $mi, $pi")
-      val included = workOutGrid(data, pi, cx, cy, group, grid, true)
+      val included = workOutGrid(data, pi, cx, cy, group, grid, true, tolerance)
       if (included.length > MinParticleInMoonlet) moonlets(mi) = included
     }
 
@@ -262,7 +263,7 @@ object MoonletTracker {
       if group(pi) < 0
     } {
       // println(s"Cell $cx, $cy, $cnt, $pi, $moonletNumber")
-      val included = workOutGrid(data, pi, cx, cy, group, grid, false)
+      val included = workOutGrid(data, pi, cx, cy, group, grid, false, tolerance)
       if (included.length > MinParticleInMoonlet) {
         moonlets(moonletNumber) = included
         moonletNumber += 1

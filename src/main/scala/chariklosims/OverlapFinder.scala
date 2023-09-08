@@ -4,20 +4,20 @@ import util.Particle
 import collection.mutable
 import scalafx.scene.input.KeyCode
 
-class OverlapFinder(data: IndexedSeq[Particle], firstIndex: Int) {
+class OverlapFinder(data: IndexedSeq[Particle], firstIndex: Int, overlapRatio: Double) {
   private val MinGridCount = 20
   val parts = mutable.Buffer(firstIndex)
   private var grid: mutable.Map[Int, mutable.Map[Int, List[Int]]] = null
   private var gridCellSize = -1.0
 
   def checkParticle(i: Int): Boolean = {
-    if (grid == null) parts.exists(inc => data(i).overlapped(data(inc)))
+    if (grid == null) parts.exists(inc => data(i).overlapped(data(inc), overlapRatio))
     else {
       val gx = ((data(i).x - data(firstIndex).x) / gridCellSize).toInt
       val gy = ((data(i).y - data(firstIndex).y) / gridCellSize).toInt
       return (-1 to 1).exists { dgx => (-1 to 1).exists { dgy =>
         grid.contains(gx + dgx) && grid(gx + dgx)(gy + dgy).exists { pi =>
-          data(i).overlapped(data(pi))
+          data(i).overlapped(data(pi), overlapRatio)
         }
       }}
     }
