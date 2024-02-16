@@ -4,7 +4,7 @@ organization := "edu.trinity"
 version := "0.1.0-SNAPSHOT"
 scalacOptions := Seq("-unchecked", "-deprecation")
 javaOptions := Seq("-Xmx10g")
-scalaVersion := "2.13.10"
+scalaVersion := "2.13.12"
 assemblyMergeStrategy in assembly := {
  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
  case x => MergeStrategy.first
@@ -20,7 +20,7 @@ lazy val osName = System.getProperty("os.name") match {
 // Add JavaFX dependencies
 lazy val javaFXModules = Seq("base", "controls", "fxml", "graphics", "media", "swing", "web")
 libraryDependencies ++= javaFXModules.map( m=>
-  "org.openjfx" % s"javafx-$m" % "11" classifier osName
+  "org.openjfx" % s"javafx-$m" % "17" classifier osName
 )
 
 libraryDependencies += "org.scala-lang.modules" %% "scala-swing" % "3.0.0"

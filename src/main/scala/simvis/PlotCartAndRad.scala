@@ -1,4 +1,4 @@
-package generalplots
+package simvis
 
 import data.CartAndRad
 import swiftvis2.plotting._
