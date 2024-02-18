@@ -12,7 +12,7 @@ object MoonletPubPlot {
   val MoonletColors = IndexedSeq(0xFFE69F00, 0xFF56B4E9, 0xFF009E73, 0xFFF0E442, 0xFF0072B2, 0xFFD55E00, 0xFFCC79A7)
 
   def hardSpherePlot1(): (String, Int, mutable.Map[Int, IndexAndStep], Int, Int, Double) = {
-    val cartDirectory = "/home/mlewis/Rings/CentaurRings/Chariklo/InnerRing-grav-rho0.5-tau0.1-hard/"
+    val cartDirectory = "/data/mlewis/Rings/CentaurRings/Chariklo/InnerRing-grav-rho0.5-tau0.1-hard/"
     val stepNum = 32480
     val cores = mutable.Map(0 -> IndexAndStep(221293, 0), 1 -> IndexAndStep(1522795, 0))
     (cartDirectory, stepNum, cores, 2857, 4000, 1.02)
@@ -57,15 +57,15 @@ object MoonletPubPlot {
       val (allMoonlets, allCores) = MoonletTracker.locateMoonletsAndCores(data, lastCores, tolerance)
       val moonlets = lastCores.map { case (core, _) => core -> allMoonlets(core) }
       val cores = lastCores.map { case (core, _) => core -> allCores(core) }
-      // val plot = completeStepPlot(data, moonlets, cores)
-      // SwingRenderer.saveToImage(plot, s"pub-moonlets.$stepNum.png", "PNG", width, height)
+      val plot = completeStepPlot(data, moonlets, cores)
+      SwingRenderer.saveToImage(plot, s"pub-moonlets.$stepNum.png", "PNG", width, height)
 
-      val sepsMap = minSeparations(data, moonlets, cores, tolerance)
-      val bins = (0 to 100).map(i => 0.01 * i)
-      for ((key, seps) <- sepsMap) {
-        val fracSeps = seps.map(_._2)
-        SwingRenderer(Plot.histogramPlotFromData(bins, fracSeps, BlackARGB, s"Moonet $key", "Fractional Separation", "Count"), 1200, 1200, true)
-      }
+      // val sepsMap = minSeparations(data, moonlets, cores, tolerance)
+      // val bins = (0 to 100).map(i => 0.01 * i)
+      // for ((key, seps) <- sepsMap) {
+      //   val fracSeps = seps.map(_._2)
+      //   SwingRenderer(Plot.histogramPlotFromData(bins, fracSeps, BlackARGB, s"Moonet $key", "Fractional Separation", "Count"), 1200, 1200, true)
+      // }
     }
   }
 
@@ -106,7 +106,7 @@ object MoonletPubPlot {
       val style = MoonletTracker.moonletScatter(data, moonlet, core, MoonletColors(key % MoonletColors.length), 0.2, 0x77000000)
       val grid = PlotGrid.oneByOne("x", Axis.ScaleStyle.Linear, "y", Axis.ScaleStyle.Linear, style)
         .withModifiedAxis[NumericAxis]("x", "x", a => a.updatedNumberFormat("%1.2f").updatedName("Radial Distance from Chariklo [km]"))
-        .withModifiedAxis[NumericAxis]("y", "y", a => a.updatedNumberFormat("%1.1f").updatedName("Azimuthal Offset from Cell Center [km]"))
+        .withModifiedAxis[NumericAxis]("y", "y", a => a.updatedNumberFormat("%1.2f").updatedName("Azimuthal Offset from Cell Center [km]"))
       val gridData = Plot.GridData(grid, Bounds(plotGridX * width, plotGridY * height + 0.01, width, height))
       i.toString -> gridData
     }).toMap
