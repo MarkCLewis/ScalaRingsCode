@@ -33,7 +33,6 @@ object OccultationGrid {
                             ) <- directories) yield {
       println(dirStr)
       val dir = new File(dirStr)
-      //????
       val num = {
         val files = dir.list
         (for (f @ FileRegex(num) <- files)
@@ -47,7 +46,6 @@ object OccultationGrid {
       val sigma = sigmaStr.toDouble
       num
         .filter(_ >= 10000)
-        //LOGIC
         .map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma, rest))
     }).flatten
 

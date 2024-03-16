@@ -7,7 +7,9 @@ import util.Particle
 import java.io.PrintWriter
 import collection.JavaConverters._
 
-object AutomateOccultations {
+object LeviComments {
+  //args: -azimuthal*OPTIONAL -starFile*OPTIONAL (starFile csv name, star as in occulted star?)
+  //simulationData*(//"/home/mlewis/Rings/JoshCDAP15-17/") -centerOnMedians
   def main(args: Array[String]): Unit = {
     if (args.length < 1) {
       println(
@@ -20,12 +22,17 @@ object AutomateOccultations {
       println(" -starFile: delimited file of star data.")
       sys.exit(0)
     }
+
+    //read to check if azimuthal is a thing
     val (azimuthal, args2) = {
       val (a1, a2) = args.partition(_ == "-azimuthal")
       (a1.nonEmpty, a2)
     }
+
+    //read the star data from arg2 by opening some csv file or using the baseStars if not specified
     val (starData, args3) = {
       val ind = args2.indexOf("-starFile")
+      //if doesn't specify then use the base stars measurements
       if (ind < 0) (MeasurementDetails.baseStars, args2)
       else {
         val source = scala.io.Source.fromFile(args2(ind + 1))
@@ -33,6 +40,8 @@ object AutomateOccultations {
           .flatMap(line => MeasurementDetails.fromCSV(line))
           .toVector
         val sd2 =
+          // if it's azimuthal get the star data but with phiMin 0, phiMax 0
+          //LOGIC?
           if (azimuthal) sd.map(md => md.copy(phiMin = 0.0, phiMax = 0.0))
           else sd
         source.close()
@@ -40,6 +49,7 @@ object AutomateOccultations {
       }
     }
     println(starData)
+
     val simDataDirectory = args3(0) //"/home/mlewis/Rings/JoshCDAP15-17/"
     val simDataDirectoryFile = new File(simDataDirectory)
     if (!simDataDirectoryFile.exists()) {
@@ -50,9 +60,14 @@ object AutomateOccultations {
     val DirRegex =
       """a=([\d.]+):q=([\d.]+):min=([\d.eE-]+):max=([\d.eE-]+):rho=([\d.]+):\w+=([\d.]+)(.*)""".r
     val FileRegex = """CartAndRad\.(\d+)\.bin""".r
+
+    //return the names of all the directories contained inside simDataDirectoryFile folder
     val directories = simDataDirectoryFile.list
     println("Directories = " + directories.mkString(", "))
 
+//
+//
+    //from each of those directories get folder name matched with the regex and loop through all of them
     val simulations = (for (dirStr @ DirRegex(
                               r0Str,
                               qStr,
@@ -63,20 +78,28 @@ object AutomateOccultations {
                               rest
                             ) <- directories) yield {
       println(dirStr)
+
+      //go inside the folder which contains all the cart and Rad Bin
       val dir = new File(simDataDirectoryFile, dirStr)
       val num = {
         val files = dir.list
+        //parse each CartAndRad, extract by num, computer can do this bc regex is """CartAndRad\.(\d+)\.bin"""
         (for (f @ FileRegex(num) <- files)
+          //looping through all the num from all the CartAndRad folder and compiling it to a list then returning the Some() of the biggest number
           yield num.toInt).reduceLeftOption((n1, n2) => if (n1 > n2) n1 else n2)
       }
+      println(num);
       val r0 = r0Str.toDouble
       val q = qStr.toDouble
       val radMin = minStr.toDouble
       val radMax = maxStr.toDouble
       val rho = rhoStr.toDouble
       val sigma = sigmaStr.toDouble
+      //call the simulation case class constructor on the value in the Some()
       num.map(n => Simulation(dir, n, r0, q, radMin, radMax, rho, sigma, rest))
     }).flatten
+    //r0 important: distance of ring from central body.
+    //400 km
 
     simulations.foreach(println)
 
@@ -86,6 +109,8 @@ object AutomateOccultations {
     // Use number of photons with a mean of i0/1000 taken from a Poisson distribution
 
     //val dataSets = collection.mutable.Map[(Simulation, Int), (IndexedSeq[Particle], BinData)]()
+    //creating a mutable hashmap
+
     val dataSets = new java.util.WeakHashMap[
       (Simulation, Int),
       (IndexedSeq[Particle], BinData)
