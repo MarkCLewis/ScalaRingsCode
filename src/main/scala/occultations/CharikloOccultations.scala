@@ -8,46 +8,52 @@ import java.io.PrintWriter
 object CharikloOccultations {
   def main(args: Array[String]): Unit = {
     val simulationDir = new File(args(0))
+    if (!simulationDir.exists()) {
+      println("You need to specify a directory that exists.")
+      sys.exit(0)
+    }
     val simulations = simulationDir.list()
 
-    //TODO: verify simulation directory exists
+    var numSample = 0
+    val sampleCap = 1
 
-    var count = 0
     val r0: Double = 400
     val star = MeasurementDetails(
       "α Vir (8) I",
       "2005-141",
-      17.2,
-      10,
-      80,
-      390,
-      900000000,
-      2546,
-      479000
+      90,
+      90,
+      90,
+      400,
+      400,
+      36,
+      6345
     )
 
     val FileRegex = """CartAndRad\.(\d+)\.bin""".r
+    val pw = new PrintWriter(
+      new File(simulationDir, "testoccultation.txt")
+    )
 
-    for ((sim @ FileRegex(step)) <- simulations; if count < 1) {
-      println("got here")
+    for ((sim @ FileRegex(step)) <- simulations; if numSample < sampleCap) {
+
+      //dont divide by 1000??? why did I leave this comment here
       val poissonDist = new PoissonDistribution(star.i0 / 1000)
       val cutTheta = 0.0 // Currently radial
+
       val phi = (star.phiMin + star.phiMax) * 0.5 * math.Pi / 180 // Decide how to pick this better
+      val beamSize = 0.25 / r0
+      //we are not doing multiple cuts, you can set distance from base cut by 10 that's best so you dont add more, it's something
+      val cutSpread = 7 / r0
 
-      val beamSize = 0.01 / r0
-      val cutSpread = 0.3 / r0
-
-      //how did this come to be, it determines how much occulting we do and it uses all the rs
-      val scanLength = (star.rmax - star.rmin) / star.duration / r0 / 1000 // Length in R_0 for a millisecond
-
-      println(scanLength)
-
+      //scan length is the integration distance: 0.5
+      // val scanLength = (star.rmax - star.rmin) / star.duration / r0 / 1000 // Length in R_0 for a millisecond
+      val scanLength = 0.5 / star.duration / star.duration / r0 / 1000
       val scans = collection.mutable.Buffer[Scan]()
-      val pw = new PrintWriter(
-        new File(simulationDir, "testoccultation.txt")
-      )
 
-      while (scans.length < 1000 && new File(
+      println("beam size" + beamSize.toString())
+
+      while (scans.length < 100 && new File(
                simulationDir,
                sim
              ).exists()) {
@@ -73,8 +79,7 @@ object CharikloOccultations {
             phi,
             star.B * math.Pi / 180,
             cutTheta,
-            // scanLength,
-            300,
+            scanLength,
             0.0,
             beamSize,
             zmax - zmin,
@@ -96,6 +101,16 @@ object CharikloOccultations {
       }
       pw.println(star)
       pw.println(sim)
+      pw.println(
+        "Index\tPhotons\tTrans\tFraction\tstart-x\tstart-y\tend-x\tend-y"
+      )
+      for ((scan, i) <- scans.zipWithIndex) {
+        pw.println(s"$i\t${scan.photons.length}\t${scan.photons
+          .count(!_.hit)}\t${scan.intensity}\t${scan.sx}\t${scan.sy}\t${scan.ex}\t${scan.ey}")
+      }
+      pw.flush()
+
+      numSample += 1
     }
 
   }
