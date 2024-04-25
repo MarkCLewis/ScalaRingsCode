@@ -7,14 +7,23 @@ import java.io.PrintWriter
 
 object CharikloOccultations {
   def main(args: Array[String]): Unit = {
+    val (singleSample, args2) : (Option[Int], Array[String]) = {
+      val ind = args.indexOf("-singleSample")
+      if (ind < 0) {
+        (None, args)
+      } else {
+        (Some(args(ind + 1).toInt), args.patch(ind, Nil, 2))
+      }
+    }
+    
     val (sampleCap, simulationDirPath): (Int, String) = {
-      val ind = args.indexOf("-sampleCap")
+      val ind = args2.indexOf("-sampleCap")
       if (ind < 0) {
         println("Occulting all sample")
-        (new File(args(0)).list().length, args(0))
+        (new File(args2(0)).list().length, args2(0))
       } else {
-        println("Occulting over at most " + args(ind + 1) + " sample(s)")
-        (args(ind + 1).toInt, args(ind + 2))
+        println("Occulting over at most " + args2(ind + 1) + " sample(s)")
+        (args2(ind + 1).toInt, args2(ind + 2))
       }
     }
 
@@ -23,8 +32,14 @@ object CharikloOccultations {
       println("You need to specify a directory that exists.")
       sys.exit(0)
     }
-
-    val simulations = simulationDir.list()
+    val FileRegex = """CartAndRad\.(\d+)\.bin""".r
+    val simulations = singleSample match {
+      case None => simulationDir.list()
+      case Some(step) => simulationDir.list().filter(fileName => fileName match {
+        case FileRegex(fileStep) => step == fileStep.toInt
+        case _ => false
+      })
+    }
 
     //Occultation data
     //Chariklo data
@@ -51,7 +66,6 @@ object CharikloOccultations {
     val corruptSampleLog = new PrintWriter(
       new File(simulationDir, "corruptSample.txt")
     )
-    val FileRegex = """CartAndRad\.(\d+)\.bin""".r
     var currentSample = 0
     //loop through each sample until reach the sample cap number and generate a corresponding occultation.txt file
     for ((sim @ FileRegex(step)) <- simulations;
