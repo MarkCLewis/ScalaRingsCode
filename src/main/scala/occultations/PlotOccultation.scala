@@ -74,7 +74,13 @@ object PlotOccultation {
   ): Unit = {
 
     println("plotting")
-    val p = Plot.scatterPlotWithLines(data.map(_.index), data.map(_.trans))
+    val p = Plot
+      .scatterPlotWithLines(
+        data.map(_.index),
+        data.map(_.trans),
+        "Occultation"
+      )
+      .updatedAxis[NumericAxis]("y", _.updatedMin(0.0))
 
     SwingRenderer(p, 1000, 1000, true)
 
