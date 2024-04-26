@@ -58,7 +58,7 @@ object CharikloOccultations {
     )
     val poissonDist = new PoissonDistribution(star.i0)
     val cutTheta = 0.0 // Currently radial
-    val phi = 90
+    val phi = 90 * math.Pi/180
     val beamSize = 0.25 / r0
     //doing a single cut
     val cutSpread = 10 / r0
