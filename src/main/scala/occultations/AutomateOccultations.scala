@@ -71,12 +71,11 @@ object AutomateOccultations {
     
     val pw = new PrintWriter(new File(simDataDirectoryFile, "occultations.txt"))
 
-    // for (star <- starData) {
-    val star = starData(0)
+    for (star <- starData) {
       val poissonDist = new PoissonDistribution(star.i0 / 1000)
       val cutTheta = 0.0 // Currently radial
       val phi = (star.phiMin + star.phiMax) * 0.5 * math.Pi/180 // Decide how to pick this better
-      for (sim <- simulations) {
+      for (sim <- simulations; if sim.r0 >= star.rmin && sim.r0 <= star.rmax) {
         println(sim)
         val beamSize = 0.01 / sim.r0
         val cutSpread = 0.3 / sim.r0
@@ -101,7 +100,6 @@ object AutomateOccultations {
             val (cx, cy) = if (!centerOnMedians) (0.0, 0.0) else {
               particles.sortBy(_.x).apply(particles.length/2).x -> particles.sortBy(_.y).apply(particles.length/2).y
             }
-            println((cx, cy))
             scans ++= multipleCuts(cx, cy, phi, star.B * math.Pi/180, cutTheta, scanLength,
               0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread, 2000).flatten
             println("Scans length = "+scans.length)
@@ -121,5 +119,5 @@ object AutomateOccultations {
         pw.flush()
       }
     }
-  
+  }
 }
