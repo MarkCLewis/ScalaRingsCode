@@ -83,7 +83,7 @@ object CharikloOccultations {
       val scans = collection.mutable.Buffer[Scan]()
       var faulty = false
       //TODO: Dr. Lewis please also look at scans.length to see why it needs to be < 100 cause you originally had <1000
-      while (scans.length < 100 && !faulty) {
+      // while (!faulty) {
         try {
           val particles = data.CartAndRad.read(new File(simulationDir, sim))
           val binned = binParticles(particles)
@@ -131,7 +131,7 @@ object CharikloOccultations {
             faulty = true
           }
         }
-      }
+      // }
       if (!faulty) {
         val outFilename = "occultation" + step + ".txt"
         val pw = new PrintWriter(
