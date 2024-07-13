@@ -9,6 +9,7 @@ import swiftvis2.plotting.Plot.GridData
 import swiftvis2.plotting.renderer.SwingRenderer
 import data.CartAndRad
 import util.Particle
+import scala.collection.immutable.ArraySeq
 
 /**
   * This main is intended to read in a FixedBinned
@@ -51,10 +52,10 @@ object Fixed2DMovie {
     val save = args.sliding(2).find(_(0) == "-save").map(_(1))
     val colorIndex = args.sliding(2).find(_(0) == "-colorIndex").map(_(1).toInt).getOrElse(4)
     val gradientString = args.sliding(2).find(_(0) == "-gradient").map(_(1)).getOrElse("0.0:000000,1.0:ffffff")
-    val gradient = ColorGradient(gradientString.split(",").map { vc =>
+    val gradient = ColorGradient(ArraySeq.unsafeWrapArray(gradientString.split(",").map { vc =>
       val Array(v, c) = vc.split(":")
       (v.toDouble, Integer.parseInt(c, 16) | 0xff000000)
-    }:_*)
+    }):_*)
     val boxcar = args.sliding(2).find(_(0) == "-boxcar").map(_(1).toDouble)
     val azMin = args.sliding(2).find(_(0) == "-azMin").map(_(1).toDouble).getOrElse(Double.MinValue)
     val azMax = args.sliding(2).find(_(0) == "-azMax").map(_(1).toDouble).getOrElse(Double.MaxValue)
@@ -169,6 +170,6 @@ object Fixed2DMovie {
     val sliceP2D = Plot2D(slicePlot, "value", "radial")
     val sliceMarkerP2D = Plot2D(ScatterStyle(Array(x, x), Array(radMin, radMax), NoSymbol, lines = Some(ScatterStyle.LineData(1, Renderer.StrokeData(1, Seq(1))))), "azimuthal", "radial")
     PlotGrid(Seq(Seq(Seq(surfaceP2D, sliceMarkerP2D), Seq(sliceP2D))), Map("azimuthal" -> NumericAxis.defaultHorizontalAxis("Azimuthal/Time"), "radial" -> NumericAxis.defaultVerticalAxis("Radial", "%1.1e"), 
-      "value" -> NumericAxis.defaultHorizontalAxis("value", colorName)), Array(5, 1), Array(1))
+      "value" -> NumericAxis.defaultHorizontalAxis("value", colorName)), ArraySeq(5, 1), ArraySeq(1))
   }
 }

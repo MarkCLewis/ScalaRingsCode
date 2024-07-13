@@ -22,7 +22,7 @@ object Render {
       Future.sequence(futures).map { pixelFrames =>
         val byView = pixelFrames.transpose
         assert(byView.length == vds.length)
-        val endViewDatas = (byView, vds).zipped.map((pixels, vd) => pixels.foldLeft(vd)(_.addPixels(_)))
+        val endViewDatas = byView.lazyZip(vds).map((pixels, vd) => pixels.foldLeft(vd)(_.addPixels(_)))
         endViewDatas.foreach(_.writeToImage())
         frame.foreach((_.repaint()))
         endViewDatas
@@ -54,7 +54,7 @@ object Render {
       val iDataOpt = geom.intersect(ray)
       iDataOpt.foreach { iData =>
         val interPoint = iData.point + iData.norm*1e-8
-        for ((vd, right, pixels) <- (vds, rights, pixelss).zipped) {
+        for ((vd, right, pixels) <- vds.lazyZip(rights).lazyZip(pixelss)) {
           if (geom.intersect(Ray(interPoint, vd.view.loc)).isEmpty) {
             val inRay = (vd.view.loc - interPoint).normalize
             val scatter = iData.geom.asInstanceOf[ScatterGeometry].fractionScattered(ray.dir, inRay, iData)

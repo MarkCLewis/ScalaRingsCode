@@ -14,6 +14,7 @@ import swiftvis2.plotting._
 import swiftvis2.plotting.renderer.Renderer
 import swiftvis2.plotting.Plot.GridData
 import swiftvis2.plotting.renderer.SwingRenderer
+import scala.collection.immutable.ArraySeq
 
 
 object SOACartAndRadPeakFinder { 
@@ -56,7 +57,7 @@ object SOACartAndRadPeakFinder {
                     val (binX, coveredArea) = getSurfDensity(particles,numBins)
 
                     val window = 20
-                    val extrema = MinMaxFinder.getLocalExtrema(binX,coveredArea,window,false).filter(_.isMax)
+                    val extrema = MinMaxFinder.getLocalExtrema(ArraySeq.unsafeWrapArray(binX),ArraySeq.unsafeWrapArray(coveredArea),window,false).filter(_.isMax)
                     val locations = extrema.map { e => -e.x}
                     val extremeValues = extrema.map { e => e.y}
                     

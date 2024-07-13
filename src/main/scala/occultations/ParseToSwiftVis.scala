@@ -9,7 +9,7 @@ object ParseToSwiftVis extends App {
   val DataLine = """(\d+)\t(\d+)\t(\d+)\t(.+)""".r
   
   var indexCount = 0
-  val lines = io.Source.fromFile(inFilename).getLines
+  val lines = io.Source.fromFile(inFilename).getLines()
   val pw = new PrintWriter(outFilename)
   for(line <- lines) {
     if(line.startsWith("Index")) indexCount += 1

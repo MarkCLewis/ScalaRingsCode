@@ -5,7 +5,7 @@ import org.apache.commons.math3.distribution.PoissonDistribution
 import SynthOccultations._
 import util.Particle
 import java.io.PrintWriter
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object AutomateOccultations {
   def main(args: Array[String]): Unit = {
@@ -24,7 +24,7 @@ object AutomateOccultations {
       val ind = args2.indexOf("-starFile")
       if (ind < 0) (MeasurementDetails.baseStars, args2) else {
         val source = scala.io.Source.fromFile(args2(ind + 1))
-        val sd = source.getLines.flatMap(line => MeasurementDetails.fromCSV(line)).toVector
+        val sd = source.getLines().flatMap(line => MeasurementDetails.fromCSV(line)).toVector
         val sd2 = if (azimuthal) sd.map(md => md.copy(phiMin = 0.0, phiMax = 0.0)) else sd
         source.close()
         (sd2, args2.patch(ind, Nil, 2))

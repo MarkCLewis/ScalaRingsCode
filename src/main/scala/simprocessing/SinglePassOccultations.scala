@@ -23,7 +23,7 @@ object SinglePassOccultations extends App {
     val scanWidth = 0.1/R0
     val binData = SynthOccultations.binParticles(cr, scanLength*2)
     val scans = SynthOccultations.syntheticOccultation(midx, midy, 0, math.Pi / 2, 0, scanLength, 0, scanWidth, 0.0, binData, 100000)
-    scans.foreach(s => pw.println(s.sx+" "+s.sy+" "+s.ex+" "+s.ey+" "+s.intensity+" "+s.photons.count(_.hit)))
+    scans.foreach(s => pw.println(s"${s.sx} ${s.sy} ${s.ex} ${s.ey} ${s.intensity} ${s.photons.count(_.hit)}"))
   }
   pw.close
 }

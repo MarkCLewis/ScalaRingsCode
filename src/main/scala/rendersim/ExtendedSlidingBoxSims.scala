@@ -24,7 +24,7 @@ class ExtendedSlidingBoxSims(
   interpCutoff:    Double                   = 1e-5,
   radiusScale:     Particle => Double       = p => 1.0) {
 
-  private val placedInterps = placedSpecs.mapValues(ss => new InterpolatedCartAndRadSequence(ss.dir, ss.startIndex, ss.endIndex, interpCutoff))
+  private val placedInterps = placedSpecs.map { case (k, ss) => k -> new InterpolatedCartAndRadSequence(ss.dir, ss.startIndex, ss.endIndex, interpCutoff) }
   private val backgroundInterps = backgroundSpecs.map(ss => new InterpolatedCartAndRadSequence(ss.dir, ss.startIndex, ss.endIndex, interpCutoff))
   private val cells = for {
     cx <- -cellCountX to cellCountX

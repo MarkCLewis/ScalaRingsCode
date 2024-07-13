@@ -30,8 +30,8 @@ object HighVelsAnnulusPlot {
     println(s"Highest vels = ${allVels.map(v => OrbitSpeed(5e18, 391/(2.0/(3.0*4)+1), v))}")
     val cxs = data.flatMap(step => step.colls.take(maxToTake).reverse.map(c => 0.5*(c.p1.x+c.p2.x)))
     val cys = data.flatMap(step => step.colls.take(maxToTake).reverse.map(c => 0.5*(c.p1.y+c.p2.y)))
-    val xs = (cxs, cys).zipped.map((x, y) => math.cos(y)*(1+x*xMult))
-    val ys = (cxs, cys).zipped.map((x, y) => math.sin(y)*(1+x*xMult))
+    val xs = cxs.lazyZip(cys).map((x, y) => math.cos(y)*(1+x*xMult))
+    val ys = cxs.lazyZip(cys).map((x, y) => math.sin(y)*(1+x*xMult))
     val sizes = data.flatMap(step => step.colls.take(maxToTake).reverse.map(c => c.vel * speedMult))
     val min = sizes.min
     val max = sizes.max

@@ -7,6 +7,7 @@ import swiftvis2.plotting.Plot.GridData
 import swiftvis2.plotting.renderer.SwingRenderer
 
 import scala.io.Source
+import scala.collection.immutable.ArraySeq
 
 // reads in a text file of following format:
 // # of different slices (plots of tau as function of radius) 1 LINE
@@ -36,7 +37,7 @@ object DensityWavelengthCalculator {
                 radialValues(i) = (maxima(i+1)+maxima(i))/2 - R0
                 lambdaValues(i) = maxima(i+1)-maxima(i)
             }
-            val (slope, intercept) = doLinearFit(radialValues.map(r => SIGMA/(R0-r)), lambdaValues)
+            val (slope, intercept) = doLinearFit(ArraySeq.unsafeWrapArray(radialValues.map(r => SIGMA/(R0-r))), ArraySeq.unsafeWrapArray(lambdaValues))
             //val slope = doPropFit(radialValues.map(r => 1/(R0-r)), lambdaValues)
             val (start, end) = (radialValues(0), radialValues(radialValues.length-1))
             val fitX = (0 to 20).map(i => start + i * (end - start) / 20.0) // (start to end by (end-start)/20).toSeq
@@ -107,14 +108,14 @@ object DensityWavelengthCalculator {
     def readMaximaLocs(filename: String): Seq[(Int, Seq[Double])] = {
 		val bufferedSource = Source.fromFile(new java.io.File(filename))
 		val lines = bufferedSource.getLines()
-		val numSteps = lines.next.toInt
+		val numSteps = lines.next().toInt
 		val ret = Array.ofDim[(Int, Seq[Double])](numSteps)
 		for(i <- 0 until numSteps){
-            val step = lines.next.toInt
-			val numMaxima = lines.next.toInt
+            val step = lines.next().toInt
+			val numMaxima = lines.next().toInt
 			val maxima = Array.ofDim[Double](numMaxima)
 			for(j <- 0 until numMaxima){
-				maxima(j) = lines.next.toDouble
+				maxima(j) = lines.next().toDouble
 			}
 			val pair = (step, maxima.toSeq)
 			ret(i) = pair

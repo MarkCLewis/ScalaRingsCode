@@ -18,7 +18,7 @@ object PubDustPlot extends App {
   val simDir = new File(args(0))
   val imageDir = new File(simDir, "plots")
   imageDir.mkdirs()
-  val rows = for (num <- args.drop(1); file = new File(simDir, s"CartAndRad.$num.bin"); if file.exists) yield {
+  val rows = for (num <- args.drop(1).toIndexedSeq; file = new File(simDir, s"CartAndRad.$num.bin"); if file.exists) yield {
     val data = CartAndRad.read(file)
     val gcdata = data.map(p => GCCoord(p))
     val rads = data.map(p => if (p.rad > 5e-9) 6 else 2)
@@ -34,8 +34,8 @@ object PubDustPlot extends App {
     Seq(
       Seq(
         ScatterStyle(
-          (data, gcdata).zipped.flatMap((c, gc) => Array(c.x, gc.X)),
-          (data, gcdata).zipped.flatMap((c, gc) => Array(c.y, gc.Y)),
+          data.lazyZip(gcdata).flatMap((c, gc) => Array(c.x, gc.X)),
+          data.lazyZip(gcdata).flatMap((c, gc) => Array(c.y, gc.Y)),
           NoSymbol,
           colors = phiGrad(gcdata.flatMap(gc => Array(gc.phi, gc.phi))),
           lines = Some(ScatterStyle.LineData(data.indices.flatMap(i => Array(i, i)): PlotIntSeries))

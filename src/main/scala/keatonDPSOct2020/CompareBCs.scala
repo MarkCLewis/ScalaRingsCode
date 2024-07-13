@@ -13,6 +13,7 @@ import swiftvis2.plotting._
 import swiftvis2.plotting.renderer.Renderer
 import swiftvis2.plotting.Plot.GridData
 import swiftvis2.plotting.renderer.SwingRenderer
+import scala.collection.immutable.ArraySeq
 
 object CompareBCs {
     val MOON_ORBIT_RADIUS = 139380
@@ -74,7 +75,7 @@ object CompareBCs {
             val (soaBinnedX, soaBinnedY, soaTau) = getTau(soaParticles3x,soaBinsX,soaBinsY)
             val soaModY = soaBinnedY.map(y => (-y % (2*math.Pi)))
             val soaModX = soaBinnedX.map(x => -x)
-            val soaAvgTau = getRealAvg(soaTau, gradCut)
+            val soaAvgTau = getRealAvg(ArraySeq.unsafeWrapArray(soaTau), gradCut)
             val gradientSOA = ColorGradient(0.0 -> BlackARGB, soaAvgTau -> BlueARGB, soaTau.max -> GreenARGB)
             val soaSurfGrp = SeqToIntSeries((0 until (soaBinsX*soaBinsY) by 1).toSeq.map(i => i/soaBinsY))
             val (soaSliceBinX, soaTauSlice) = getSurfDensitySlice(soaParticles,200,0.1)
@@ -122,7 +123,7 @@ object CompareBCs {
             }
             val pwpsModY = allFBY.map(y => y % (2*math.Pi))
             //val pwpsNonZeroTau = allFBTau.filter(_ > allFBTau.max/3)
-            val pwpsAvgTau = getRealAvg(allFBTau, gradCut)//pwpsNonZeroTau.sum/pwpsNonZeroTau.length
+            val pwpsAvgTau = getRealAvg(ArraySeq.unsafeWrapArray(allFBTau), gradCut)//pwpsNonZeroTau.sum/pwpsNonZeroTau.length
             println("pwps avg",pwpsAvgTau)
             val gradientPWPS = ColorGradient(0.0 -> BlackARGB, pwpsAvgTau -> BlueARGB, allFBTau.max -> GreenARGB)
             val pwpsSurfGrp = SeqToIntSeries((0 until len by 1).toSeq.map(i => i/fixedBins.length))
@@ -152,7 +153,7 @@ object CompareBCs {
                     (p.y + 2*math.Pi) % (2*math.Pi) >= -(2*soaMaxY-soaMinY) % (2*math.Pi))
                 val (globBinnedX, globBinnedY, globTau) = getTau(globParticles,globBinsX,globBinsY)
                 val globModY = globBinnedY.map(y => (y + 2*math.Pi) % (2*math.Pi))
-                val globTauAvg = getRealAvg(globTau, gradCut)
+                val globTauAvg = getRealAvg(ArraySeq.unsafeWrapArray(globTau), gradCut)
                 val gradientGlobal = ColorGradient(0.0 -> BlackARGB, globTauAvg -> BlueARGB, globTau.max -> GreenARGB)
                 val globSurfGrp = SeqToIntSeries((0 until (globBinsX*globBinsY) by 1).toSeq.map(i => i/globBinsY))
                 val (globSliceBinX, globTauSlice) = getSurfDensitySlice(globParticles,50,0.1)

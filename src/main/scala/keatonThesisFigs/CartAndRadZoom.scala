@@ -13,6 +13,7 @@ import swiftvis2.plotting._
 import swiftvis2.plotting.renderer.Renderer
 import swiftvis2.plotting.Plot.GridData
 import swiftvis2.plotting.renderer.SwingRenderer
+import scala.collection.immutable.ArraySeq
 
 object CartAndRadZoom {
 	def main(args: Array[String]): Unit = {
@@ -128,7 +129,7 @@ object CartAndRadZoom {
                 while (mod > first + math.Pi) mod -= 2*math.Pi
                 newAngles(i) = mod
             }
-            newAngles
+            ArraySeq.unsafeWrapArray(newAngles)
         }
         else{
             oldAngles

@@ -11,6 +11,7 @@ import swiftvis2.plotting.renderer.SwingRenderer
 import java.io._ 
 import scala.io.Source
 import scala.collection.mutable
+import scala.collection.immutable.ArraySeq
 
 
 //this should read in a FixedBinned file and output a file containing the locations of all the maxima in each slice
@@ -67,12 +68,12 @@ object FixedBinnedPeakFinder {
 				val printIndex = 100*(start+index)
 
 				val lines = Array.ofDim[String](extrema.length+2)
-				lines(0) = printIndex + "\n"
-				lines(1) = extrema.length + "\n"
+				lines(0) = s"$printIndex\n"
+				lines(1) = s"${extrema.length}\n"
 				for (i <- 2 until lines.length){
-					lines(i) = ""+locations(i-2)+"\n" 
+					lines(i) = s"${locations(i-2)}\n" 
 				}
-				writeFile("extremeLocations."+start+"00-"+end+"00.txt", lines)
+				writeFile("extremeLocations."+start+"00-"+end+"00.txt", ArraySeq.unsafeWrapArray(lines))
 
 				if(save.nonEmpty || display){
 					val plot = Plot.scatterPlots(Seq((yValues,tauValues,BlackARGB,5),(locations,extremeValues,RedARGB,10)),title=("Step number "+printIndex),xLabel="radial",yLabel="tau")
@@ -127,11 +128,11 @@ object FixedBinnedPeakFinder {
 				// writeFile("y_tau_index"+slice(0)+"-"+(slice(1)-1)+".txt",lines.toSeq)
 
 				val lines = Array.ofDim[String](extrema.length+1)
-				lines(0) = index + "\n"
+				lines(0) = s"$index\n"
 				for (i <- 1 until lines.length){
 					lines(i) = ""+locations(i-1)+"\n" 
 				}
-				writeFile("testOutput.txt", lines)
+				writeFile("testOutput.txt", ArraySeq.unsafeWrapArray(lines))
 				
 				val plot = Plot.scatterPlots(Seq((radValues,tauValues,BlackARGB,5),(locations,extremeValues,RedARGB,10)/*,(parabolasX,parabolasY,RedARGB,5)*/),title=("Step number "+index),xLabel="radial",yLabel="tau")
 				.updatedAxis[NumericAxis]("x", axis => axis.copy(tickLabelInfo = axis.tickLabelInfo.map(_.copy(numberFormat = "%1.4f"))))
@@ -160,17 +161,17 @@ object FixedBinnedPeakFinder {
 	def readTestingFile(filename: String): Seq[(Seq[Double], Seq[Double])] = {
 		val bufferedSource = Source.fromFile(new java.io.File(filename))
 		val lines = bufferedSource.getLines()
-		val numPlots = lines.next.toInt
+		val numPlots = lines.next().toInt
 		//print(numPlots)
 		val ret = mutable.ArrayBuffer.empty[(Seq[Double], Seq[Double])]
 		for(i <- 0 until numPlots){
-			val len = lines.next.toInt
+			val len = lines.next().toInt
 			//print(len)
 			val arr1 = Array.ofDim[Double](len)
 			val arr2 = Array.ofDim[Double](len)
 			for(j <- 0 until len){
-				arr1(j) = lines.next.toDouble
-				arr2(j) = lines.next.toDouble
+				arr1(j) = lines.next().toDouble
+				arr2(j) = lines.next().toDouble
 			}
 			val pair = (arr1.toSeq, arr2.toSeq)
 			ret += pair

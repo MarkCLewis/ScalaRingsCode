@@ -144,8 +144,8 @@ object MinMaxFinder {
         printMatrix("D MATRIX", D)
         printMatrix("TRANSPOSED MATRIX",transD)
         println("y Vector")
-        yArr.foreach{x => print(x+", ")}
-        println
+        yArr.foreach{x => print(s"$x, ")}
+        println()
         val aMat = matMult(transD,D)
         val b = matMult(transD,yArr)
         val ef = doFit(aMat,b)

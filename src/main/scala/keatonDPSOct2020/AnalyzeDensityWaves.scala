@@ -11,6 +11,7 @@ import swiftvis2.plotting.renderer.SwingRenderer
 
 import java.io._ 
 import scala.collection.mutable
+import scala.collection.immutable.ArraySeq
 
 object AnalyzeDensityWaves {
     val SIGMA = 450 //kg/m2
@@ -71,7 +72,7 @@ object AnalyzeDensityWaves {
                     radialValues(i) = ((locations(i+1)+locations(i))/2 - RL)/(-RL)
                     wavenumber(i) = 2*math.Pi/((locations(i+1)-locations(i))*RP)
                 }
-                val (slope, intercept) = doLinearFit(radialValues, wavenumber)
+                val (slope, intercept) = doLinearFit(ArraySeq.unsafeWrapArray(radialValues), ArraySeq.unsafeWrapArray(wavenumber))
                 //val slope = (3*(mNumber-1)*2*math.Pi) / (G*450*math.pow((moonPeriod*(mNumber-1))/(mNumber),2))
                 //val intercept = findBestIntercept(radialValues,wavenumber,slope)
                 println("slope",slope,"intercept",intercept)
@@ -144,7 +145,7 @@ object AnalyzeDensityWaves {
             val updaterK = if (true) Some(SwingRenderer(kPlotBig, width, height, true)) else None
             println("Done drawing Big Plot")
 
-            val allDensities = (allRadii.toSeq, allWavenumbers.toSeq).zipped.map{(r,k) => getLocalDensity(k/r)}
+            val allDensities = allRadii.toSeq.lazyZip(allWavenumbers.toSeq).map{(r,k) => getLocalDensity(k/r)}
             val sStyle = ScatterStyle(allRadii.toSeq, allDensities, symbolWidth=5, symbolHeight=5)//, colors=RedARGB,
                 //lines = Some(ScatterStyle.LineData(0, Renderer.StrokeData(1,Nil))))
             val sigmaPlotBig = Plot.simple(sStyle,xLabel="Fractional Distance From Resonance",yLabel="Surface Density (kg/m^2)")
@@ -167,7 +168,7 @@ object AnalyzeDensityWaves {
     }
 
     //takes a set of points and returns a pair of coordinates as Seq(x0,y0,x1,y1)
-    def doLinearFit(x: Seq[Double], y: Seq[Double]): (Double, Double) = {
+    def doLinearFit(x: IndexedSeq[Double], y: IndexedSeq[Double]): (Double, Double) = {
         val sz = 2
         var f1 = (z:Double) => z   // f_1 = x
         var f2 = (z:Double) => 1.0 // f_2 = 1

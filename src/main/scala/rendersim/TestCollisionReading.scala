@@ -14,7 +14,7 @@ object TestCollisionReading extends App {
   val updater1 = SwingRenderer(Plot.scatterPlot(1 to 10, 1 to 10), 1000, 1000, true)
   val updater2 = SwingRenderer(Plot.scatterPlot(1 to 10, 1 to 10), 1000, 1000, true)
   for (step <- collSteps.takeRight(5)) {
-    println(step.step + " " + step.colls.head.vel + " " + step.colls.last.vel)
+    println(s"${step.step} 4{step.colls.head.vel} ${step.colls.last.vel}")
     val carFile = new File(dir, "CartAndRad." + step.step + ".bin")
     // TODO: Make it filter around the moon and have the sizes of the particles scaled. Requires always reading the file to filter.
     if (carFile.exists) {
@@ -27,7 +27,7 @@ object TestCollisionReading extends App {
         symbolWidth = 5, symbolHeight = 5, colors = cg(plotColls.map(_.vel)))
       val carStyle = ScatterStyle(plotParts.map(_.x * 1.3e5), plotParts.map(_.y * 1.3e5), symbolWidth = plotParts.map(_.rad * 2 * 1.3e5),
         symbolHeight = plotParts.map(_.rad * 2 * 1.3e5), xSizing = PlotSymbol.Sizing.Scaled, ySizing = PlotSymbol.Sizing.Scaled)
-      val plot = Plot.stacked(List(carStyle, collStyle), title = step.step + " " + step.colls.length)
+      val plot = Plot.stacked(List(carStyle, collStyle), title = s"${step.step} ${step.colls.length}")
       updater1.update(plot)
       updater2.update(Plot.simple(ScatterStyle(step.colls.map(cd => (cd.p1.x + cd.p2.x) * 0.5 * 1.3e5), step.colls.map(cd => (cd.p1.y + cd.p2.y) * 0.5 * 1.3e5),
         symbolWidth = 5, symbolHeight = 5, colors = cg(plotColls.map(_.vel)))))
