@@ -1,11 +1,12 @@
-package occultations
+package chariklosims
 
 import java.io.File
 import org.apache.commons.math3.distribution.PoissonDistribution
-import SynthOccultations._
+import occultations.SynthOccultations._
 import java.io.PrintWriter
+import occultations.MeasurementDetails
 
-object CharikloOccultations {
+object Occultations {
   /* 
    * @param args should cointain the path to folder containing all the samples 
    * @param (Optional) "-singleSample Int" to process a single sample file with a step Int
@@ -80,8 +81,7 @@ object CharikloOccultations {
         val (cx, cy) = particles
           .sortBy(_.x).apply(particles.length / 2).x -> 
           particles.sortBy(_.y).apply(particles.length / 2).y
-        scans ++= multipleCuts(cx, cy, phi, star.B * math.Pi / 180, cutTheta, scanLength, 0.0, beamSize, zmax - zmin, binned, poissonDist.sample, cutSpread, 2000).flatten
-        //TODO: why 2000?
+        scans ++= syntheticOccultation(cx, cy, phi, star.B * math.Pi / 180, cutTheta, scanLength, 0.0, beamSize, zmax - zmin, binned, poissonDist.sample, 1.0)
         println("Scans length = " + scans.length)
         val outFilename = "occultation" + step + ".txt"
         val pw = new PrintWriter(

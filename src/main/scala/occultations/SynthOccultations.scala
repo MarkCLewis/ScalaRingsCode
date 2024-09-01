@@ -54,12 +54,12 @@ object SynthOccultations {
    * @param photonCount Expression producing the number of photons for a particular bin
    */
   def syntheticOccultation(x: Double, y: Double, theta: Double, phi: Double, cutTheta: Double, scanLength: Double,
-    offLength: Double, beamSize: Double, height: Double, binData: BinData, photonCount: => Int): Seq[Scan] = {
+    offLength: Double, beamSize: Double, height: Double, binData: BinData, photonCount: => Int, scanLengthMult: Double = 0.0): Seq[Scan] = {
     val rDir = Vect3D(cos(theta) * cos(phi), sin(theta) * cos(phi), sin(phi))
     val dx = math.cos(cutTheta)
     val dy = math.sin(cutTheta)
-    val xstart = binData.xmin + rDir.x.abs * height
-    val xend = binData.xmax - rDir.x.abs * height
+    val xstart = binData.xmin + rDir.x.abs * height - dx * (binData.xmax - binData.xmin) * scanLengthMult
+    val xend = binData.xmax - rDir.x.abs * height + dx * (binData.xmax - binData.xmin) * scanLengthMult
     println(s"Occult Setting: $height, $xstart, $xend, $rDir")
     var mx = xstart
     val ret = mutable.Buffer[Scan]()

@@ -56,7 +56,7 @@ object PlotOccultation {
     }
 
     // transmissionPlot(details, step, data.toArray.filter(_.photon > 0))
-    plotSample(details, step, beamSize, data.toArray.filter(_.photon > 0), "../plot/CartAndRad.40180.bin")
+    plotSample(details, step, beamSize, data.toArray.filter(_.photon > 0), args(1))
   }
   def transmissionPlot(details: String, step: String, data: Array[DataLine]): Unit = {
     println("plotting")
