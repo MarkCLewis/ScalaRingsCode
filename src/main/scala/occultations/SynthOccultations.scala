@@ -65,7 +65,7 @@ object SynthOccultations {
     val ret = mutable.Buffer[Scan]()
     while (mx < xend-scanLength) {
       val sx = mx
-      val sy = y + (ret.length * scanLength) * dy
+      val sy = y + ret.length * (scanLength + offLength) * dy
       val ex = sx + scanLength * dx
       val ey = sy + scanLength * dy
       val pc = photonCount
@@ -76,7 +76,7 @@ object SynthOccultations {
         val rrad = math.random()
         val rx = sx + t * (ex - sx) + rrad * beamSize * math.cos(rang)
         val ry = sy + t * (ey - sy) + rrad * beamSize * math.sin(rang)
-        if(rx < binData.xmin || rx > binData.xmax) println(s"Oops x! $rx, ${binData.xmin} ${binData.xmax}")
+        // if(rx < binData.xmin || rx > binData.xmax) println(s"Oops x! $rx, ${binData.xmin} ${binData.xmax}")
         if(ry < binData.ymin || ry > binData.ymax) println(s"Oops y! $ry, ${binData.ymin} ${binData.ymax} $sy + $t * ($ey - $sy) + $rrad * $beamSize * ${math.sin(rang)}")
         Photon(rx, ry, rayGridIntersect(Ray(Vect3D(rx, ry, 0), rDir), binData))
       })
